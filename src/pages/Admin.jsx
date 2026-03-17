@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useAuth } from '@/lib/AuthContext';
-import { AdminDB, SeedData, RpgSystem } from '@/firebase/db';
+import { AdminDB, SeedData, RpgSystem, AiAgent } from '@/firebase/db';
+import { DEFAULT_AGENTS, AGENT_IDS } from '@/lib/aiAgents';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +31,12 @@ import {
   Globe,
   Lock,
   Sparkles,
-  Eye
+  Eye,
+  Bot,
+  ChevronRight,
+  RotateCcw,
+  Code2,
+  Thermometer
 } from 'lucide-react';
 
 // ─── Componente de Card de Estatística ──────────────────────────────────────
@@ -701,6 +707,298 @@ function TabDatabase() {
   );
 }
 
+// ─── Aba: Agentes de IA ───────────────────────────────────────────────────────
+
+// Ordem e metadados de exibição dos agentes
+const AGENT_DISPLAY_ORDER = [
+  { id: AGENT_IDS.QUESTION_WHAT,      icon: '❓', category: '5W2H' },
+  { id: AGENT_IDS.QUESTION_WHY,       icon: '❓', category: '5W2H' },
+  { id: AGENT_IDS.QUESTION_WHERE,     icon: '❓', category: '5W2H' },
+  { id: AGENT_IDS.QUESTION_WHEN,      icon: '❓', category: '5W2H' },
+  { id: AGENT_IDS.QUESTION_WHO,       icon: '❓', category: '5W2H' },
+  { id: AGENT_IDS.QUESTION_HOW,       icon: '❓', category: '5W2H' },
+  { id: AGENT_IDS.QUESTION_HOW_MUCH,  icon: '❓', category: '5W2H' },
+  { id: AGENT_IDS.CAMPAIGN_GENERATOR, icon: '⚔️', category: 'Geração' },
+  { id: AGENT_IDS.NPC_GENERATOR,      icon: '👤', category: 'Geração' }
+];
+
+function TabAiAgents() {
+  const queryClient = useQueryClient();
+  const [selectedAgentId, setSelectedAgentId] = useState(AGENT_IDS.QUESTION_WHAT);
+  const [editForm, setEditForm] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
+
+  // Carrega todos os overrides salvos no Firestore
+  const { data: overridesMap = {}, isLoading } = useQuery({
+    queryKey: ['admin-ai-agents'],
+    queryFn: () => AiAgent.loadOverridesMap()
+  });
+
+  // Quando muda o agente selecionado, popula o form com defaults + override
+  React.useEffect(() => {
+    if (!selectedAgentId) return;
+    const defaults = DEFAULT_AGENTS[selectedAgentId];
+    const override = overridesMap[selectedAgentId] || {};
+    setEditForm({
+      systemPrompt: override.systemPrompt ?? defaults.systemPrompt,
+      promptTemplate: override.promptTemplate ?? defaults.promptTemplate,
+      temperature: override.temperature ?? defaults.temperature
+    });
+  }, [selectedAgentId, overridesMap]);
+
+  const selectedAgent = DEFAULT_AGENTS[selectedAgentId];
+  const hasOverride = !!overridesMap[selectedAgentId];
+
+  const handleSave = async () => {
+    if (!editForm || !selectedAgentId) return;
+    setSaveStatus('saving');
+    try {
+      await AiAgent.upsert(selectedAgentId, {
+        agentId: selectedAgentId,
+        systemPrompt: editForm.systemPrompt,
+        promptTemplate: editForm.promptTemplate,
+        temperature: Number(editForm.temperature)
+      });
+      queryClient.invalidateQueries(['admin-ai-agents']);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(null), 3000);
+    } catch (err) {
+      console.error('Erro ao salvar agente:', err);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus(null), 5000);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!selectedAgentId) return;
+    if (!confirm(`Restaurar o agente "${selectedAgent?.name}" para as configurações padrão?`)) return;
+    try {
+      await AiAgent.delete(selectedAgentId);
+      queryClient.invalidateQueries(['admin-ai-agents']);
+      // Volta para os defaults no form
+      const defaults = DEFAULT_AGENTS[selectedAgentId];
+      setEditForm({
+        systemPrompt: defaults.systemPrompt,
+        promptTemplate: defaults.promptTemplate,
+        temperature: defaults.temperature
+      });
+    } catch (err) {
+      console.error('Erro ao restaurar agente:', err);
+      alert('Erro ao restaurar configurações padrão.');
+    }
+  };
+
+  const groupedAgents = AGENT_DISPLAY_ORDER.reduce((acc, item) => {
+    const cat = item.category;
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-1">Agentes de IA</h2>
+        <p className="text-slate-400 text-sm">
+          Configure os prompts de cada agente de IA. As alterações são aplicadas imediatamente em toda a plataforma.
+          Agentes com customização aparecem com um indicador laranja.
+        </p>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* ─── Painel Esquerdo: Lista de Agentes ─────────────────────────────── */}
+        <div className="lg:w-72 shrink-0">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-slate-400 p-4">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Carregando...
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(groupedAgents).map(([category, items]) => (
+                <div key={category}>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2 mb-2">
+                    {category === '5W2H' ? 'Respondedores 5W2H' : 'Geradores'}
+                  </p>
+                  <div className="space-y-1">
+                    {items.map(({ id }) => {
+                      const agent = DEFAULT_AGENTS[id];
+                      const isSelected = selectedAgentId === id;
+                      const isCustomized = !!overridesMap[id];
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => setSelectedAgentId(id)}
+                          className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                            isSelected
+                              ? 'bg-purple-600/20 border border-purple-500/30 text-purple-300'
+                              : 'text-slate-400 hover:text-white hover:bg-slate-800/50 border border-transparent'
+                          }`}
+                        >
+                          <Bot className={`w-4 h-4 shrink-0 ${isSelected ? 'text-purple-400' : 'text-slate-500'}`} />
+                          <span className="text-sm font-medium flex-1 truncate">{agent?.name}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isCustomized && (
+                              <span className="w-2 h-2 rounded-full bg-amber-400" title="Customizado" />
+                            )}
+                            {isSelected && <ChevronRight className="w-3.5 h-3.5" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ─── Painel Direito: Editor ─────────────────────────────────────────── */}
+        {editForm && selectedAgent && (
+          <div className="flex-1 min-w-0 space-y-5">
+            {/* Cabeçalho do agente */}
+            <div className="p-4 bg-slate-900/50 border border-purple-900/20 rounded-xl">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Bot className="w-5 h-5 text-purple-400" />
+                    <h3 className="text-white font-semibold">{selectedAgent.name}</h3>
+                    {hasOverride && (
+                      <span className="px-2 py-0.5 text-xs bg-amber-600/20 text-amber-300 border border-amber-500/30 rounded">
+                        Customizado
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-400 text-sm">{selectedAgent.description}</p>
+                </div>
+                {hasOverride && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleReset}
+                    className="text-slate-400 hover:text-white shrink-0"
+                    title="Restaurar configurações padrão"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    <span className="text-xs">Restaurar Padrão</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* System Prompt */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Code2 className="w-4 h-4 text-blue-400" />
+                <Label className="text-white font-medium">System Prompt</Label>
+              </div>
+              <p className="text-slate-500 text-xs">
+                Define a personalidade e o papel da IA neste contexto. Enviado antes do prompt principal.
+              </p>
+              <Textarea
+                value={editForm.systemPrompt}
+                onChange={(e) => setEditForm({ ...editForm, systemPrompt: e.target.value })}
+                className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm min-h-[120px]"
+                placeholder="System prompt do agente..."
+              />
+            </div>
+
+            {/* Prompt Template */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <Label className="text-white font-medium">Prompt Template</Label>
+              </div>
+              <p className="text-slate-500 text-xs">
+                Template do prompt principal. Use <code className="text-amber-300 bg-slate-800 px-1 rounded">{`{{variavel}}`}</code> para inserir valores dinâmicos.
+              </p>
+              <Textarea
+                value={editForm.promptTemplate}
+                onChange={(e) => setEditForm({ ...editForm, promptTemplate: e.target.value })}
+                className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm min-h-[280px]"
+                placeholder="Template do prompt..."
+              />
+            </div>
+
+            {/* Temperature */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Thermometer className="w-4 h-4 text-rose-400" />
+                <Label className="text-white font-medium">
+                  Temperature: <span className="text-purple-400 font-bold">{editForm.temperature}</span>
+                </Label>
+              </div>
+              <p className="text-slate-500 text-xs">
+                0 = respostas mais determinísticas e consistentes. 1 = mais criativo e variado. Recomendado: 0.7–0.95 para RPG.
+              </p>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={editForm.temperature}
+                onChange={(e) => setEditForm({ ...editForm, temperature: parseFloat(e.target.value) })}
+                className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600"
+              />
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>0 (preciso)</span>
+                <span>0.5 (balanceado)</span>
+                <span>1 (criativo)</span>
+              </div>
+            </div>
+
+            {/* Variáveis disponíveis */}
+            <div className="p-4 bg-slate-950/50 border border-slate-800 rounded-xl">
+              <p className="text-sm font-semibold text-slate-300 mb-3">
+                Variáveis disponíveis para este agente:
+              </p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {selectedAgent.variables?.map((v) => (
+                  <div key={v.key} className="flex items-start gap-2">
+                    <code className="text-amber-300 bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono shrink-0">
+                      {`{{${v.key}}}`}
+                    </code>
+                    <span className="text-slate-400 text-xs">{v.description}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Botão salvar */}
+            <div className="flex items-center justify-between pt-2">
+              <div className="text-sm">
+                {saveStatus === 'saved' && (
+                  <span className="flex items-center gap-1.5 text-green-400">
+                    <CheckCircle className="w-4 h-4" />
+                    Configuração salva com sucesso!
+                  </span>
+                )}
+                {saveStatus === 'error' && (
+                  <span className="flex items-center gap-1.5 text-red-400">
+                    <AlertCircle className="w-4 h-4" />
+                    Erro ao salvar. Tente novamente.
+                  </span>
+                )}
+              </div>
+              <Button
+                onClick={handleSave}
+                disabled={saveStatus === 'saving'}
+                className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600"
+              >
+                {saveStatus === 'saving' ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
+                ) : (
+                  <><Save className="w-4 h-4 mr-2" />Salvar Configuração</>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente Principal: Admin ─────────────────────────────────────────────
 
 export default function Admin() {
@@ -774,6 +1072,10 @@ export default function Admin() {
             <Database className="w-4 h-4 mr-2" />
             Banco de Dados
           </TabsTrigger>
+          <TabsTrigger value="ai-agents" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-slate-400">
+            <Bot className="w-4 h-4 mr-2" />
+            Agentes de IA
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
@@ -790,6 +1092,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="database" className="mt-6">
           <TabDatabase />
+        </TabsContent>
+        <TabsContent value="ai-agents" className="mt-6">
+          <TabAiAgents />
         </TabsContent>
       </Tabs>
     </div>

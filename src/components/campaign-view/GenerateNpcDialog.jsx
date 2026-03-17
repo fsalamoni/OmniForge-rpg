@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { NpcCreature } from '@/firebase/db';
+import { NpcCreature, AiAgent } from '@/firebase/db';
 import { invokeLLM } from '@/lib/aiClient';
+import { AGENT_IDS, DEFAULT_AGENTS, buildPrompt, getAgentConfig } from '@/lib/aiAgents';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,11 +11,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Sparkles } from 'lucide-react';
 
 export default function GenerateNpcDialog({ campaignId, systemRpg, setting, onNpcCreated }) {
-  const { userProfile } = useAuth();
+  const { userProfile, isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [npcType, setNpcType] = useState('NPC');
   const [instructions, setInstructions] = useState('');
+  const [agentOverrides, setAgentOverrides] = useState({});
+
+  // Carrega overrides do agente NPC ao abrir o dialog (admin only para performance)
+  useEffect(() => {
+    if (!open) return;
+    const loadOverrides = async () => {
+      try {
+        const map = await AiAgent.loadOverridesMap();
+        setAgentOverrides(map);
+      } catch (err) {
+        console.error('Erro ao carregar configuração do agente NPC:', err);
+      }
+    };
+    loadOverrides();
+  }, [open]);
 
   const handleGenerate = async () => {
     if (!userProfile?.aiConfig) {
@@ -23,13 +39,15 @@ export default function GenerateNpcDialog({ campaignId, systemRpg, setting, onNp
     }
     setLoading(true);
     try {
-      const prompt = `Crie um ${npcType} interessante para uma campanha de ${systemRpg} com ambientação ${setting}.
+      // Carrega config do agente NPC com override se existir
+      const config = getAgentConfig(AGENT_IDS.NPC_GENERATOR, agentOverrides);
 
-${instructions ? `Instruções específicas: ${instructions}` : 'Crie um personagem único e memorável.'}
-
-Gere um personagem completo com nome, papel, motivação, descrição e atributos apropriados ao sistema ${systemRpg}.
-
-Responda em JSON com os campos: name (string), role (string), motivation (string), description (string), stats (objeto com atributos do sistema).`;
+      const prompt = buildPrompt(config.promptTemplate, {
+        type: npcType,
+        system: systemRpg,
+        setting,
+        instructions: instructions || 'Crie um personagem único, memorável e adequado ao contexto da campanha.'
+      });
 
       const result = await invokeLLM({
         prompt,
@@ -44,7 +62,9 @@ Responda em JSON com os campos: name (string), role (string), motivation (string
           },
           required: ['name', 'role', 'description']
         },
-        userAIConfig: userProfile.aiConfig
+        userAIConfig: userProfile.aiConfig,
+        systemPrompt: config.systemPrompt,
+        temperature: config.temperature
       });
 
       const newNpc = await NpcCreature.create({

@@ -317,6 +317,43 @@ export const AdminDB = {
   }
 };
 
+// ─── AiAgent — Prompts Customizados dos Agentes de IA ────────────────────────
+// Os admins podem sobrescrever systemPrompt, promptTemplate e temperature de cada agente.
+// Os documentos têm IDs fixos (ex: 'question-what', 'campaign-generator').
+
+export const AiAgent = {
+  // Lista todos os agentes com customização salva
+  async list() {
+    const snap = await getDocs(collection(db, 'aiAgents'));
+    return toDocs(snap);
+  },
+
+  // Busca um agente específico por ID
+  async get(id) {
+    const snap = await getDoc(doc(db, 'aiAgents', id));
+    return toData(snap);
+  },
+
+  // Salva customização (upsert por ID fixo)
+  async upsert(id, data) {
+    await setDoc(doc(db, 'aiAgents', id), {
+      ...data,
+      updatedAt: now()
+    }, { merge: true });
+  },
+
+  // Remove customização (restaura padrão)
+  async delete(id) {
+    await deleteDoc(doc(db, 'aiAgents', id));
+  },
+
+  // Carrega todos os overrides como um mapa { agentId: data }
+  async loadOverridesMap() {
+    const agents = await this.list();
+    return Object.fromEntries(agents.map((a) => [a.id, a]));
+  }
+};
+
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 // Popula o banco com sistemas de RPG globais padrão
 
