@@ -7,6 +7,7 @@ import Library from './pages/Library';
 import Profile from './pages/Profile';
 import Help from './pages/Help';
 import Settings from './pages/Settings';
+import Admin from './pages/Admin';
 import __Layout from './Layout.jsx';
 
 
@@ -20,6 +21,7 @@ export const PAGES = {
     "Profile": Profile,
     "Help": Help,
     "Settings": Settings,
+    "Admin": Admin,
 }
 
 export const pagesConfig = {

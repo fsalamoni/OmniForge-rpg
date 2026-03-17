@@ -2,40 +2,98 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users: only the user themselves can read/write their own data
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // ─── Função auxiliar: verifica se o usuário logado é admin ────────────────
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Campaigns: owner has full access; public completed campaigns readable by all authenticated users
+    // ─── Usuários ─────────────────────────────────────────────────────────────
+    // Cada usuário acessa apenas seu próprio perfil.
+    // Admins podem ler/escrever qualquer perfil (para gestão de roles).
+    match /users/{userId} {
+      allow read:  if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    // ─── Campanhas ────────────────────────────────────────────────────────────
+    // Dono: acesso total.
+    // Campanhas públicas e completas: qualquer usuário autenticado pode ler.
+    // Admin: acesso total a todas as campanhas.
     match /campaigns/{campaignId} {
       allow read: if request.auth != null &&
-        (resource.data.is_public == true || request.auth.uid == resource.data.userId);
+        (resource.data.is_public == true ||
+         request.auth.uid == resource.data.userId ||
+         isAdmin());
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow update, delete: if request.auth != null &&
+        (request.auth.uid == resource.data.userId || isAdmin());
     }
 
-    // Campaign steps: readable/writable by authenticated users
-    // (ownership enforced by application logic via campaignId)
+    // ─── Etapas da Campanha (5W2H) ────────────────────────────────────────────
+    // Controle de propriedade feito pela lógica do app via campaignId.
+    // Admin pode ler/escrever tudo.
     match /campaignSteps/{docId} {
       allow read, write: if request.auth != null;
     }
 
-    // NPC Creatures: readable/writable by authenticated users
+    // ─── NPCs e Criaturas ─────────────────────────────────────────────────────
+    // Controle de propriedade feito pela lógica do app via campaignId.
     match /npcCreatures/{docId} {
       allow read, write: if request.auth != null;
     }
 
-    // RPG Systems: readable by any authenticated user; only owner can write
+    // ─── Sistemas de RPG ──────────────────────────────────────────────────────
+    // Leitura: qualquer usuário autenticado (para listar sistemas disponíveis).
+    // Criação: qualquer usuário autenticado (sistemas customizados do usuário).
+    // Atualização/Exclusão:
+    //   - Sistemas do usuário: apenas o próprio dono.
+    //   - Sistemas globais (userId ausente ou nulo): apenas admin.
     match /rpgSystems/{docId} {
-      allow read: if request.auth != null;
+      allow read:   if request.auth != null;
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow update, delete: if request.auth != null && (
+        (resource.data.userId != null && resource.data.userId != '' &&
+         request.auth.uid == resource.data.userId) ||
+        (resource.data.userId == null || resource.data.userId == '') && isAdmin() ||
+        isAdmin()
+      );
     }
 
-    // Campaign likes: readable/writable by authenticated users
+    // ─── Likes de Campanhas ───────────────────────────────────────────────────
+    // Qualquer usuário autenticado pode curtir/descurtir campanhas.
     match /campaignLikes/{docId} {
       allow read, write: if request.auth != null;
     }
+
+    // ─── Coleções legadas do Protagonista RPG ─────────────────────────────────
+    // Mantidas para compatibilidade com dados existentes no Firebase.
+    match /omnimesa_games/{gameId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null &&
+        (request.auth.uid == resource.data.userId || resource.data.userId == null || isAdmin());
+    }
+
+    match /games/{gameId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null &&
+        (request.auth.uid == resource.data.userId || resource.data.userId == null || isAdmin());
+    }
+
+    match /protagonista_games/{gameId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null &&
+        (request.auth.uid == resource.data.userId || resource.data.userId == null || isAdmin());
+    }
+
+    match /gamesessions/{sessionId}  { allow read, write: if request.auth != null; }
+    match /characters/{characterId}  { allow read, write: if request.auth != null; }
+    match /npcs/{npcId}              { allow read, write: if request.auth != null; }
+    match /handouts/{handoutId}      { allow read, write: if request.auth != null; }
+    match /documents/{documentId}    { allow read, write: if request.auth != null; }
+    match /gameimages/{imageId}      { allow read, write: if request.auth != null; }
+    match /assets/{assetId}          { allow read, write: if request.auth != null; }
+    match /scenes/{sceneId}          { allow read, write: if request.auth != null; }
+
   }
 }
