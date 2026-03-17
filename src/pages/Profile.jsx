@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
-import { AI_PRESETS } from '@/lib/aiClient';
+import { AI_PRESETS, invokeLLM } from '@/lib/aiClient';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,10 @@ import {
   Bot,
   Eye,
   EyeOff,
-  ExternalLink
+  ExternalLink,
+  CheckCircle,
+  AlertCircle,
+  FlaskConical
 } from 'lucide-react';
 
 export default function Profile() {
@@ -33,6 +36,8 @@ export default function Profile() {
   });
   const [showApiKey, setShowApiKey] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [testStatus, setTestStatus] = useState(null); // null | 'testing' | 'ok' | 'error'
+  const [testError, setTestError] = useState('');
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data) => {
@@ -68,13 +73,42 @@ export default function Profile() {
 
   const handleProviderChange = (provider) => {
     setAiProvider(provider);
-    if (provider !== 'custom') {
-      setAiConfig(prev => ({
-        ...prev,
-        baseUrl: AI_PRESETS[provider].baseUrl
-      }));
+    const preset = AI_PRESETS[provider];
+    setAiConfig(prev => ({
+      ...prev,
+      baseUrl: provider !== 'custom' ? preset.baseUrl : '',
+      // Reset model when switching providers
+      model: preset.models?.[0]?.value || ''
+    }));
+    setTestStatus(null);
+  };
+
+  const handleTestKey = async () => {
+    if (!aiConfig.apiKey || !aiConfig.baseUrl || !aiConfig.model) {
+      setTestError('Preencha a chave, URL e modelo antes de testar.');
+      setTestStatus('error');
+      return;
+    }
+    setTestStatus('testing');
+    setTestError('');
+    try {
+      const reply = await invokeLLM({
+        prompt: 'Responda apenas com a palavra: OK',
+        userAIConfig: aiConfig
+      });
+      if (typeof reply === 'string' && reply.trim().length > 0) {
+        setTestStatus('ok');
+      } else {
+        throw new Error('Resposta inesperada da API');
+      }
+    } catch (err) {
+      setTestStatus('error');
+      setTestError(err.message || 'Erro ao conectar com a API');
     }
   };
+
+  const currentPreset = AI_PRESETS[aiProvider];
+  const hasModelList = Array.isArray(currentPreset?.models);
 
   const maskedKey = aiConfig.apiKey
     ? `${'•'.repeat(Math.max(0, aiConfig.apiKey.length - 4))}${aiConfig.apiKey.slice(-4)}`
@@ -204,9 +238,9 @@ export default function Profile() {
                   ))}
                 </SelectContent>
               </Select>
-              {AI_PRESETS[aiProvider]?.docsUrl && (
+              {currentPreset?.docsUrl && (
                 <a
-                  href={AI_PRESETS[aiProvider].docsUrl}
+                  href={currentPreset.docsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 mt-2"
@@ -217,20 +251,22 @@ export default function Profile() {
               )}
             </div>
 
-            {/* Base URL */}
-            <div>
-              <Label className="text-white mb-2 block">URL Base da API</Label>
-              <Input
-                value={aiConfig.baseUrl}
-                onChange={(e) => setAiConfig({ ...aiConfig, baseUrl: e.target.value })}
-                placeholder="https://openrouter.ai/api/v1"
-                required
-                className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Deve ser compatível com OpenAI Chat Completions API
-              </p>
-            </div>
+            {/* Base URL — hidden for presets with a fixed URL, shown for custom */}
+            {aiProvider === 'custom' && (
+              <div>
+                <Label className="text-white mb-2 block">URL Base da API</Label>
+                <Input
+                  value={aiConfig.baseUrl}
+                  onChange={(e) => setAiConfig({ ...aiConfig, baseUrl: e.target.value })}
+                  placeholder="https://seu-endpoint.com/v1"
+                  required
+                  className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Deve ser compatível com OpenAI Chat Completions API
+                </p>
+              </div>
+            )}
 
             {/* API Key */}
             <div>
@@ -238,9 +274,13 @@ export default function Profile() {
               <div className="relative">
                 <Input
                   type={showApiKey ? 'text' : 'password'}
+                  autoComplete="new-password"
                   value={aiConfig.apiKey}
-                  onChange={(e) => setAiConfig({ ...aiConfig, apiKey: e.target.value })}
-                  placeholder={userProfile?.aiConfig?.apiKey ? maskedKey : 'sk-... ou sua chave de API'}
+                  onChange={(e) => {
+                    setAiConfig({ ...aiConfig, apiKey: e.target.value });
+                    setTestStatus(null);
+                  }}
+                  placeholder={userProfile?.aiConfig?.apiKey ? maskedKey : 'Cole sua chave de API aqui'}
                   required={!userProfile?.aiConfig?.apiKey}
                   className="pr-10 bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
                 />
@@ -257,27 +297,79 @@ export default function Profile() {
               )}
             </div>
 
-            {/* Model */}
+            {/* Model — dropdown when preset has model list, text input for openrouter/custom */}
             <div>
               <Label className="text-white mb-2 block">Modelo</Label>
-              <Input
-                value={aiConfig.model}
-                onChange={(e) => setAiConfig({ ...aiConfig, model: e.target.value })}
-                placeholder={AI_PRESETS[aiProvider]?.modelPlaceholder || 'model-name'}
-                required
-                className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                {aiProvider === 'openrouter' && 'Ex: openai/gpt-4o, anthropic/claude-3-5-sonnet, google/gemini-2.0-flash'}
-                {aiProvider === 'openai' && 'Ex: gpt-4o, gpt-4o-mini, gpt-3.5-turbo'}
-                {aiProvider === 'gemini' && 'Ex: gemini-2.0-flash, gemini-1.5-pro'}
-                {aiProvider === 'custom' && 'Nome do modelo conforme aceito pela sua API'}
-              </p>
+              {hasModelList ? (
+                <Select
+                  value={aiConfig.model}
+                  onValueChange={(val) => {
+                    setAiConfig({ ...aiConfig, model: val });
+                    setTestStatus(null);
+                  }}
+                >
+                  <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
+                    <SelectValue placeholder="Selecione um modelo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currentPreset.models.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <>
+                  <Input
+                    value={aiConfig.model}
+                    onChange={(e) => {
+                      setAiConfig({ ...aiConfig, model: e.target.value });
+                      setTestStatus(null);
+                    }}
+                    placeholder={currentPreset?.modelPlaceholder || 'model-name'}
+                    required
+                    className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {aiProvider === 'openrouter' && 'Ex: openai/gpt-4o, anthropic/claude-3-5-sonnet, google/gemini-2.0-flash'}
+                    {aiProvider === 'custom' && 'Nome do modelo conforme aceito pela sua API'}
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Test key button + result */}
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTestKey}
+                disabled={testStatus === 'testing'}
+                className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-800"
+              >
+                {testStatus === 'testing' ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Testando...</>
+                ) : (
+                  <><FlaskConical className="w-3.5 h-3.5 mr-1.5" />Testar Chave</>
+                )}
+              </Button>
+              {testStatus === 'ok' && (
+                <span className="flex items-center gap-1.5 text-sm text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  Chave válida! API respondendo corretamente.
+                </span>
+              )}
+              {testStatus === 'error' && (
+                <span className="flex items-center gap-1.5 text-sm text-red-400">
+                  <AlertCircle className="w-4 h-4" />
+                  {testError || 'Erro ao conectar com a API'}
+                </span>
+              )}
             </div>
 
             <div className="p-4 bg-blue-900/20 border border-blue-500/20 rounded-lg">
               <p className="text-blue-300 text-sm">
-                💡 <strong>Dica:</strong> Recomendamos o <strong>OpenRouter</strong> pois dá acesso a todos os modelos de IA (GPT-4, Claude, Gemini) com uma única chave. O modelo <code className="text-blue-200">openai/gpt-4o</code> é uma ótima escolha para criação de campanhas.
+                💡 <strong>Dica:</strong> Recomendamos o <strong>OpenRouter</strong> pois dá acesso a todos os modelos de IA (GPT-4, Claude, Gemini) com uma única chave. O modelo <code className="text-blue-200">openai/gpt-4o</code> é uma ótima escolha para criação de campanhas. Para usar o Gemini diretamente, crie uma chave em <strong>Google AI Studio</strong>.
               </p>
             </div>
 
