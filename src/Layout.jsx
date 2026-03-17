@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { 
   Home, 
   Sparkles, 
@@ -17,23 +17,11 @@ import {
 } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
-  const [user, setUser] = useState(null);
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.log('User not logged in');
-      }
-    };
-    loadUser();
-  }, []);
-
   const handleLogout = async () => {
-    await base44.auth.logout();
+    await logout();
   };
 
   const navItems = [
@@ -116,11 +104,11 @@ export default function Layout({ children, currentPageName }) {
             <div className="p-4 border-t border-purple-900/20">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-amber-500 flex items-center justify-center text-white font-bold">
-                  {user.full_name?.[0] || user.email[0].toUpperCase()}
+                  {(user.displayName || user.email)?.[0]?.toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">
-                    {user.full_name || 'Usuário'}
+                    {user.displayName || 'Usuário'}
                   </p>
                   <p className="text-xs text-slate-400 truncate">{user.email}</p>
                 </div>

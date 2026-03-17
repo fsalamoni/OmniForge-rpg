@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { 
   Sparkles, 
   Wand2, 
@@ -17,21 +17,13 @@ import {
 
 export default function Home() {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const authed = await base44.auth.isAuthenticated();
-      setIsAuthenticated(authed);
-    };
-    checkAuth();
-  }, []);
+  const { isAuthenticated, login } = useAuth();
 
   const handleGetStarted = async () => {
     if (isAuthenticated) {
       navigate(createPageUrl('Dashboard'));
     } else {
-      await base44.auth.redirectToLogin(createPageUrl('Dashboard'));
+      await login();
     }
   };
 

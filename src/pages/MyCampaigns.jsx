@@ -1,101 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { Campaign, CampaignStep, NpcCreature } from '@/firebase/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import CampaignCard from '../components/campaigns/CampaignCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Plus, 
-  Search, 
-  Filter,
-  Loader2,
-  BookOpen
-} from 'lucide-react';
+import { Plus, Search, Filter, Loader2, BookOpen } from 'lucide-react';
 
 export default function MyCampaigns() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [user, setUser] = useState(null);
-  
+  const { user } = useAuth();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSystem, setFilterSystem] = useState('all');
   const [filterSetting, setFilterSetting] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        await base44.auth.redirectToLogin(createPageUrl('MyCampaigns'));
-      }
-    };
-    loadUser();
-  }, []);
-
   const { data: allCampaigns = [], isLoading } = useQuery({
-    queryKey: ['my-campaigns'],
-    queryFn: async () => {
-      const campaigns = await base44.entities.Campaign.list('-created_date');
-      return campaigns.filter(c => c.created_by === user?.email);
-    },
+    queryKey: ['my-campaigns', user?.uid],
+    queryFn: () => Campaign.list(user.uid),
     enabled: !!user
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (campaignId) => {
-      // Deletar steps relacionados
-      const steps = await base44.entities.CampaignStep.filter({ campaign_id: campaignId });
-      for (const step of steps) {
-        await base44.entities.CampaignStep.delete(step.id);
-      }
-      
-      // Deletar NPCs relacionados
-      const npcs = await base44.entities.NpcCreature.filter({ campaign_id: campaignId });
-      for (const npc of npcs) {
-        await base44.entities.NpcCreature.delete(npc.id);
-      }
-      
-      // Deletar campanha
-      await base44.entities.Campaign.delete(campaignId);
+      await CampaignStep.deleteByCampaign(campaignId);
+      await NpcCreature.deleteByCampaign(campaignId);
+      await Campaign.delete(campaignId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['my-campaigns']);
+      queryClient.invalidateQueries(['my-campaigns', user?.uid]);
     }
   });
 
-  // Filtros
   const filteredCampaigns = allCampaigns.filter(campaign => {
     const matchesSearch = campaign.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSystem = filterSystem === 'all' || campaign.system_rpg === filterSystem;
     const matchesSetting = filterSetting === 'all' || campaign.setting === filterSetting;
-    const matchesStatus = 
+    const matchesStatus =
       filterStatus === 'all' ||
       (filterStatus === 'completed' && campaign.is_completed) ||
       (filterStatus === 'in_progress' && !campaign.is_completed);
-    
     return matchesSearch && matchesSystem && matchesSetting && matchesStatus;
   });
 
-  // Sistemas únicos
   const uniqueSystems = [...new Set(allCampaigns.map(c => c.system_rpg))];
   const uniqueSettings = [...new Set(allCampaigns.map(c => c.setting))];
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Minhas Campanhas
-          </h1>
-          <p className="text-slate-400 text-lg">
-            Gerencie todas as suas aventuras em um só lugar
-          </p>
+          <h1 className="text-4xl font-bold text-white mb-2">Minhas Campanhas</h1>
+          <p className="text-slate-400 text-lg">Gerencie todas as suas aventuras em um só lugar</p>
         </div>
         <Button
           onClick={() => navigate(createPageUrl('Generator'))}
@@ -106,15 +67,12 @@ export default function MyCampaigns() {
         </Button>
       </div>
 
-      {/* Filtros */}
       <div className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl space-y-4">
         <div className="flex items-center gap-2 text-white font-semibold mb-4">
           <Filter className="w-5 h-5 text-purple-400" />
           Filtros
         </div>
-
         <div className="grid md:grid-cols-4 gap-4">
-          {/* Busca */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
@@ -124,8 +82,6 @@ export default function MyCampaigns() {
               className="pl-10 bg-slate-950/50 border-slate-700 text-white"
             />
           </div>
-
-          {/* Sistema */}
           <Select value={filterSystem} onValueChange={setFilterSystem}>
             <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
               <SelectValue placeholder="Sistema" />
@@ -137,8 +93,6 @@ export default function MyCampaigns() {
               ))}
             </SelectContent>
           </Select>
-
-          {/* Ambientação */}
           <Select value={filterSetting} onValueChange={setFilterSetting}>
             <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
               <SelectValue placeholder="Ambientação" />
@@ -150,8 +104,6 @@ export default function MyCampaigns() {
               ))}
             </SelectContent>
           </Select>
-
-          {/* Status */}
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
               <SelectValue placeholder="Status" />
@@ -163,8 +115,6 @@ export default function MyCampaigns() {
             </SelectContent>
           </Select>
         </div>
-
-        {/* Limpar filtros */}
         {(searchTerm || filterSystem !== 'all' || filterSetting !== 'all' || filterStatus !== 'all') && (
           <Button
             onClick={() => {
@@ -181,12 +131,10 @@ export default function MyCampaigns() {
         )}
       </div>
 
-      {/* Resultados */}
       <div>
         <p className="text-slate-400 mb-4">
           {filteredCampaigns.length} {filteredCampaigns.length === 1 ? 'campanha encontrada' : 'campanhas encontradas'}
         </p>
-
         {isLoading ? (
           <div className="text-center py-16">
             <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
@@ -196,10 +144,9 @@ export default function MyCampaigns() {
           <div className="text-center py-16 bg-slate-900/30 backdrop-blur-xl border border-slate-800 rounded-2xl">
             <BookOpen className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <p className="text-slate-400 text-lg mb-2">
-              {allCampaigns.length === 0 
+              {allCampaigns.length === 0
                 ? 'Você ainda não criou nenhuma campanha'
-                : 'Nenhuma campanha encontrada com os filtros aplicados'
-              }
+                : 'Nenhuma campanha encontrada com os filtros aplicados'}
             </p>
             {allCampaigns.length === 0 && (
               <Button

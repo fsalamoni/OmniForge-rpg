@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { NpcCreature } from '@/firebase/db';
+import { invokeLLM } from '@/lib/aiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,40 +10,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Sparkles } from 'lucide-react';
 
 export default function GenerateNpcDialog({ campaignId, systemRpg, setting, onNpcCreated }) {
+  const { userProfile } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [npcType, setNpcType] = useState('NPC');
   const [instructions, setInstructions] = useState('');
 
   const handleGenerate = async () => {
+    if (!userProfile?.aiConfig) {
+      alert('Configure sua chave de IA no Perfil antes de gerar personagens.');
+      return;
+    }
     setLoading(true);
     try {
       const prompt = `Crie um ${npcType} interessante para uma campanha de ${systemRpg} com ambientação ${setting}.
 
 ${instructions ? `Instruções específicas: ${instructions}` : 'Crie um personagem único e memorável.'}
 
-Gere um personagem completo com nome, papel, motivação, descrição e atributos apropriados ao sistema ${systemRpg}.`;
+Gere um personagem completo com nome, papel, motivação, descrição e atributos apropriados ao sistema ${systemRpg}.
 
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: prompt,
-        response_json_schema: {
+Responda em JSON com os campos: name (string), role (string), motivation (string), description (string), stats (objeto com atributos do sistema).`;
+
+      const result = await invokeLLM({
+        prompt,
+        responseSchema: {
           type: 'object',
           properties: {
             name: { type: 'string' },
             role: { type: 'string' },
             motivation: { type: 'string' },
             description: { type: 'string' },
-            stats: {
-              type: 'object',
-              additionalProperties: true
-            }
+            stats: { type: 'object' }
           },
           required: ['name', 'role', 'description']
-        }
+        },
+        userAIConfig: userProfile.aiConfig
       });
 
-      const newNpc = await base44.entities.NpcCreature.create({
-        campaign_id: campaignId,
+      const newNpc = await NpcCreature.create({
+        campaignId,
         name: result.name,
         type: npcType,
         role: result.role || 'Personagem',
@@ -50,15 +57,12 @@ Gere um personagem completo com nome, papel, motivação, descrição e atributo
         stats_json: result.stats || {}
       });
 
-      if (onNpcCreated) {
-        onNpcCreated(newNpc);
-      }
-
+      if (onNpcCreated) onNpcCreated(newNpc);
       setOpen(false);
       setInstructions('');
     } catch (error) {
       console.error('Erro ao gerar NPC:', error);
-      alert('Erro ao gerar NPC. Tente novamente.');
+      alert(error.message || 'Erro ao gerar NPC. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -76,7 +80,6 @@ Gere um personagem completo com nome, papel, motivação, descrição e atributo
         <DialogHeader>
           <DialogTitle className="text-2xl">Gerar Novo Personagem</DialogTitle>
         </DialogHeader>
-        
         <div className="space-y-6 py-4">
           <div>
             <Label className="text-white mb-2 block">Tipo de Personagem</Label>
@@ -92,11 +95,8 @@ Gere um personagem completo com nome, papel, motivação, descrição e atributo
               </SelectContent>
             </Select>
           </div>
-
           <div>
-            <Label className="text-white mb-2 block">
-              Instruções Específicas (opcional)
-            </Label>
+            <Label className="text-white mb-2 block">Instruções Específicas (opcional)</Label>
             <Textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
@@ -107,7 +107,6 @@ Gere um personagem completo com nome, papel, motivação, descrição e atributo
               Descreva características, personalidade, papel na história, ou deixe em branco para a IA criar livremente.
             </p>
           </div>
-
           <div className="flex justify-end gap-3 pt-4">
             <Button
               variant="outline"
@@ -122,15 +121,9 @@ Gere um personagem completo com nome, papel, motivação, descrição e atributo
               className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600"
             >
               {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Gerando...
-                </>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Gerando...</>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Gerar Personagem
-                </>
+                <><Sparkles className="w-4 h-4 mr-2" />Gerar Personagem</>
               )}
             </Button>
           </div>
