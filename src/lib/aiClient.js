@@ -32,12 +32,14 @@ export const AI_PRESETS = {
 
 /**
  * @param {object} params
- * @param {string} params.prompt - The prompt to send
- * @param {object} [params.responseSchema] - Optional JSON schema for structured output
- * @param {object} params.userAIConfig - { apiKey, baseUrl, model }
- * @returns {Promise<object>} Parsed JSON response
+ * @param {string} params.prompt                  - The user prompt to send
+ * @param {object} [params.responseSchema]         - Optional JSON schema for structured output
+ * @param {object} params.userAIConfig             - { apiKey, baseUrl, model }
+ * @param {string} [params.systemPrompt]           - Override default system prompt
+ * @param {number} [params.temperature]            - Override default temperature (0–2)
+ * @returns {Promise<object|string>} Parsed JSON if responseSchema provided, string otherwise
  */
-export async function invokeLLM({ prompt, responseSchema, userAIConfig }) {
+export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPrompt, temperature }) {
   const { apiKey, baseUrl, model } = userAIConfig || {};
 
   if (!apiKey || !baseUrl || !model) {
@@ -46,26 +48,24 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig }) {
     );
   }
 
+  // Default system prompt falls back based on whether a schema is expected
+  const resolvedSystemPrompt = systemPrompt ?? (
+    responseSchema
+      ? 'Você é um assistente especialista em RPG. Responda SEMPRE em JSON válido conforme o schema solicitado. Não adicione texto fora do JSON.'
+      : 'Você é um assistente especialista em RPG.'
+  );
+
   const messages = [
-    {
-      role: 'system',
-      content: responseSchema
-        ? 'Você é um assistente especialista em RPG. Responda SEMPRE em JSON válido conforme o schema solicitado. Não adicione texto fora do JSON.'
-        : 'Você é um assistente especialista em RPG.'
-    },
-    {
-      role: 'user',
-      content: prompt
-    }
+    { role: 'system', content: resolvedSystemPrompt },
+    { role: 'user', content: prompt }
   ];
 
   const body = {
     model,
     messages,
-    temperature: 0.8
+    temperature: temperature ?? 0.8
   };
 
-  // Add JSON response format hint if schema provided
   if (responseSchema) {
     body.response_format = { type: 'json_object' };
   }
@@ -75,7 +75,6 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig }) {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
-      // OpenRouter extras
       'HTTP-Referer': window.location.origin,
       'X-Title': 'OmniForge RPG'
     },

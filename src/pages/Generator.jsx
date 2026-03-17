@@ -2,8 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useAuth } from '@/lib/AuthContext';
-import { Campaign, CampaignStep, NpcCreature, RpgSystem } from '@/firebase/db';
+import { Campaign, CampaignStep, NpcCreature, RpgSystem, AiAgent } from '@/firebase/db';
 import { invokeLLM } from '@/lib/aiClient';
+import {
+  AGENT_IDS,
+  QUESTION_KEY_TO_AGENT,
+  DEFAULT_AGENTS,
+  buildPrompt,
+  getAgentConfig
+} from '@/lib/aiAgents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -94,14 +101,25 @@ const QUESTIONS_5W2H = [
 
 const DEFAULT_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Vampire: The Masquerade', 'Savage Worlds', 'GURPS', 'Outro'];
 
+const CREATIVITY_LABELS = ['Totalmente Fiel', 'Muito Fiel', 'Equilibrado', 'Criativo', 'Muito Criativo', 'Liberdade Total'];
+const CREATIVITY_INSTRUCTIONS = [
+  'Siga estritamente as informações fornecidas, sem adicionar elementos extras.',
+  'Siga as informações com pequenos detalhes adicionais.',
+  'Use as informações como base e adicione elementos criativos moderados.',
+  'Tenha liberdade para expandir as ideias com criatividade.',
+  'Crie conteúdo muito além do básico, com reviravoltas inesperadas.',
+  'Tenha liberdade total para criar, usando as respostas apenas como inspiração.'
+];
+
 export default function Generator() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const campaignId = searchParams.get('id');
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, isAdmin } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [aiFillingKey, setAiFillingKey] = useState(null); // chave da pergunta sendo preenchida por IA
   const [availableSystems, setAvailableSystems] = useState(DEFAULT_SYSTEMS);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -115,6 +133,10 @@ export default function Generator() {
   const [creativityLevel, setCreativityLevel] = useState(2);
   const [activeCampaignId, setActiveCampaignId] = useState(campaignId);
 
+  // Overrides de prompts dos agentes (carregados do Firestore, apenas para admin)
+  const [agentOverrides, setAgentOverrides] = useState({});
+
+  // Carrega sistemas disponíveis
   useEffect(() => {
     const loadSystems = async () => {
       if (!user) return;
@@ -130,6 +152,21 @@ export default function Generator() {
     loadSystems();
   }, [user]);
 
+  // Carrega overrides dos agentes do Firestore (só para admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const loadAgentOverrides = async () => {
+      try {
+        const map = await AiAgent.loadOverridesMap();
+        setAgentOverrides(map);
+      } catch (err) {
+        console.error('Erro ao carregar configurações dos agentes:', err);
+      }
+    };
+    loadAgentOverrides();
+  }, [isAdmin]);
+
+  // Carrega campanha existente se houver ID
   useEffect(() => {
     if (campaignId && user) {
       loadExistingCampaign();
@@ -215,6 +252,59 @@ export default function Generator() {
     }
   };
 
+  // ─── Auto-fill com IA (admin only) ──────────────────────────────────────────
+  const handleAiFillQuestion = async (questionKey) => {
+    if (!userProfile?.aiConfig) {
+      alert('Configure sua chave de IA no Perfil antes de usar o auto-preenchimento.\n\nAcesse: Perfil → Configuração de IA');
+      return;
+    }
+
+    setAiFillingKey(questionKey);
+    try {
+      const agentId = QUESTION_KEY_TO_AGENT[questionKey];
+      const config = getAgentConfig(agentId, agentOverrides);
+
+      // Monta contexto das respostas anteriores
+      const previousAnswers = QUESTIONS_5W2H
+        .filter(q => q.key !== questionKey && answers[q.key]?.trim())
+        .map(q => `${q.title}: ${answers[q.key]}`)
+        .join('\n');
+
+      const prompt = buildPrompt(config.promptTemplate, {
+        system: formData.system_rpg,
+        setting: formData.setting,
+        duration: formData.duration_type,
+        players: formData.players_count,
+        title: formData.title,
+        question_title: QUESTIONS_5W2H.find(q => q.key === questionKey)?.title || '',
+        question_description: QUESTIONS_5W2H.find(q => q.key === questionKey)?.description || '',
+        previous_answers: previousAnswers || 'Nenhuma resposta anterior ainda.'
+      });
+
+      const result = await invokeLLM({
+        prompt,
+        responseSchema: {
+          type: 'object',
+          properties: { answer: { type: 'string' } },
+          required: ['answer']
+        },
+        userAIConfig: userProfile.aiConfig,
+        systemPrompt: config.systemPrompt,
+        temperature: config.temperature
+      });
+
+      if (result?.answer) {
+        setAnswers(prev => ({ ...prev, [questionKey]: result.answer }));
+      }
+    } catch (err) {
+      console.error('Erro ao gerar resposta com IA:', err);
+      alert(`Erro ao gerar resposta: ${err.message}`);
+    } finally {
+      setAiFillingKey(null);
+    }
+  };
+
+  // ─── Geração final da campanha ───────────────────────────────────────────────
   const handleFinalGeneration = async () => {
     if (!activeCampaignId) return;
 
@@ -237,50 +327,18 @@ export default function Generator() {
         .map(s => `${s.question_text}: ${s.user_answer}`)
         .join('\n');
 
-      const creativityInstructions = [
-        'Siga estritamente as informações fornecidas, sem adicionar elementos extras.',
-        'Siga as informações com pequenos detalhes adicionais.',
-        'Use as informações como base e adicione elementos criativos moderados.',
-        'Tenha liberdade para expandir as ideias com criatividade.',
-        'Crie conteúdo muito além do básico, com reviravoltas inesperadas.',
-        'Tenha liberdade total para criar, usando as respostas apenas como inspiração.'
-      ][creativityLevel];
+      // Carrega config do agente de geração final (com override do admin se existir)
+      const genConfig = getAgentConfig(AGENT_IDS.CAMPAIGN_GENERATOR, agentOverrides);
 
-      const prompt = `Você é um mestre de RPG criando uma campanha para ${formData.system_rpg}.
-
-Ambientação: ${formData.setting}
-Duração: ${formData.duration_type}
-Jogadores: ${formData.players_count}
-
-Informações da campanha (5W2H):
-${answersText}
-
-Nível de criatividade ${creativityLevel}/5: ${creativityInstructions}
-
-Crie uma campanha completa em português do Brasil com resumo narrativo envolvente, 3-5 ganchos de aventura, 3-5 NPCs importantes e 3-5 encontros balanceados para ${formData.players_count} jogadores.
-
-Responda em JSON com a seguinte estrutura:
-{
-  "adventure_summary": "Resumo completo da aventura",
-  "plot_hooks": ["gancho 1", "gancho 2", "gancho 3"],
-  "npcs": [
-    {
-      "name": "Nome",
-      "role": "Papel na história",
-      "motivation": "Motivação do personagem",
-      "description": "Descrição detalhada"
-    }
-  ],
-  "encounters": [
-    {
-      "name": "Nome do encontro",
-      "difficulty": "Fácil/Médio/Difícil/Mortal",
-      "description": "Descrição do encontro",
-      "creatures": [{"name": "Criatura", "quantity": 2}],
-      "tactics": "Táticas de combate"
-    }
-  ]
-}`;
+      const prompt = buildPrompt(genConfig.promptTemplate, {
+        system: formData.system_rpg,
+        setting: formData.setting,
+        duration: formData.duration_type,
+        players: formData.players_count,
+        answers: answersText,
+        creativity_level: creativityLevel,
+        creativity_instructions: CREATIVITY_INSTRUCTIONS[creativityLevel]
+      });
 
       const result = await invokeLLM({
         prompt,
@@ -328,7 +386,9 @@ Responda em JSON com a seguinte estrutura:
           },
           required: ['adventure_summary', 'plot_hooks', 'npcs', 'encounters']
         },
-        userAIConfig: userProfile.aiConfig
+        userAIConfig: userProfile.aiConfig,
+        systemPrompt: genConfig.systemPrompt,
+        temperature: genConfig.temperature
       });
 
       const normalizedResult = {
@@ -371,7 +431,7 @@ Responda em JSON com a seguinte estrutura:
     }
   };
 
-  // Etapa 0: Formulário inicial
+  // ─── Etapa 0: Formulário inicial ─────────────────────────────────────────────
   if (currentStep === 0) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -481,7 +541,7 @@ Responda em JSON com a seguinte estrutura:
     );
   }
 
-  // Etapas 1-7: Perguntas 5W2H
+  // ─── Etapas 1–7: Perguntas 5W2H ──────────────────────────────────────────────
   if (currentStep >= 1 && currentStep <= 7) {
     const question = QUESTIONS_5W2H[currentStep - 1];
     return (
@@ -504,12 +564,15 @@ Responda em JSON com a seguinte estrutura:
           onChange={(value) => setAnswers({ ...answers, [question.key]: value })}
           onNext={handleAnswerSubmit}
           isLoading={loading}
+          // Botão de IA disponível apenas para admin
+          onAiFill={isAdmin ? () => handleAiFillQuestion(question.key) : undefined}
+          isAiFilling={aiFillingKey === question.key}
         />
       </div>
     );
   }
 
-  // Etapa 8: Nível de criatividade
+  // ─── Etapa 8: Nível de criatividade ──────────────────────────────────────────
   if (currentStep === 8) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -533,7 +596,7 @@ Responda em JSON com a seguinte estrutura:
                 Nível: <span className="text-purple-400 font-bold">{creativityLevel}</span>
               </Label>
               <span className="text-sm text-slate-400">
-                {['Totalmente Fiel', 'Muito Fiel', 'Equilibrado', 'Criativo', 'Muito Criativo', 'Liberdade Total'][creativityLevel]}
+                {CREATIVITY_LABELS[creativityLevel]}
               </span>
             </div>
             <input
@@ -549,20 +612,8 @@ Responda em JSON com a seguinte estrutura:
             </div>
           </div>
           <div className="p-6 bg-purple-900/10 border border-purple-500/20 rounded-lg">
-            <h3 className="text-white font-semibold mb-2">
-              {creativityLevel <= 1 && 'Modo Fiel'}
-              {creativityLevel === 2 && 'Modo Equilibrado'}
-              {creativityLevel === 3 && 'Modo Criativo'}
-              {creativityLevel >= 4 && 'Modo Livre'}
-            </h3>
-            <p className="text-slate-400 text-sm">
-              {creativityLevel === 0 && 'A IA seguirá estritamente suas respostas, sem adicionar elementos extras.'}
-              {creativityLevel === 1 && 'A IA seguirá suas respostas com pequenos detalhes adicionais.'}
-              {creativityLevel === 2 && 'A IA usará suas respostas como base e adicionará elementos criativos moderados.'}
-              {creativityLevel === 3 && 'A IA terá liberdade para expandir suas ideias com criatividade.'}
-              {creativityLevel === 4 && 'A IA criará conteúdo muito além do básico, com reviravoltas inesperadas.'}
-              {creativityLevel === 5 && 'A IA terá liberdade total para criar, usando suas respostas apenas como inspiração.'}
-            </p>
+            <h3 className="text-white font-semibold mb-2">{CREATIVITY_LABELS[creativityLevel]}</h3>
+            <p className="text-slate-400 text-sm">{CREATIVITY_INSTRUCTIONS[creativityLevel]}</p>
           </div>
 
           {!userProfile?.aiConfig && (
