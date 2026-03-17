@@ -2,22 +2,23 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
-import { 
-  Home, 
-  Sparkles, 
-  BookOpen, 
-  Library, 
-  User, 
-  HelpCircle, 
+import {
+  Home,
+  Sparkles,
+  BookOpen,
+  Library,
+  User,
+  HelpCircle,
   LogOut,
   Menu,
   X,
   Scroll,
-  Settings
+  Settings,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const handleLogout = async () => {
@@ -31,7 +32,8 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Biblioteca', page: 'Library', icon: Library },
     { name: 'Perfil', page: 'Profile', icon: User },
     { name: 'Sistemas', page: 'Settings', icon: Settings },
-    { name: 'Ajuda', page: 'Help', icon: HelpCircle }
+    { name: 'Ajuda', page: 'Help', icon: HelpCircle },
+    ...(isAdmin ? [{ name: 'Admin', page: 'Admin', icon: ShieldCheck, adminOnly: true }] : [])
   ];
 
   // Landing page não tem layout
@@ -65,7 +67,7 @@ export default function Layout({ children, currentPageName }) {
               <div className="flex items-center gap-3">
                 <Scroll className="w-8 h-8 text-purple-400" />
                 <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-amber-400 bg-clip-text text-transparent">
-                  RPG Forge
+                  OmniForge
                 </h1>
               </div>
               <button
@@ -82,13 +84,18 @@ export default function Layout({ children, currentPageName }) {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentPageName === item.page;
+              const isAdminItem = item.adminOnly;
               return (
                 <Link
                   key={item.page}
                   to={createPageUrl(item.page)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    isActive
+                    isActive && isAdminItem
+                      ? 'bg-red-600/20 text-red-300 border border-red-500/30'
+                      : isActive
                       ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                      : isAdminItem
+                      ? 'text-red-400/70 hover:text-red-300 hover:bg-red-900/20'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                   }`}
                 >
@@ -139,7 +146,7 @@ export default function Layout({ children, currentPageName }) {
             <div className="flex items-center gap-2">
               <Scroll className="w-6 h-6 text-purple-400" />
               <span className="font-bold bg-gradient-to-r from-purple-400 to-amber-400 bg-clip-text text-transparent">
-                RPG Forge
+                OmniForge
               </span>
             </div>
             <div className="w-6" />
