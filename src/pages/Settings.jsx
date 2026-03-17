@@ -1,71 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { RpgSystem } from '@/firebase/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  Settings as SettingsIcon, 
-  Plus, 
-  Pencil, 
+import {
+  Settings as SettingsIcon,
+  Plus,
+  Pencil,
   Trash2,
   ArrowLeft,
   Save,
   Loader2
 } from 'lucide-react';
 
+const defaultForm = {
+  name: '',
+  description: '',
+  core_attributes: [],
+  core_attributes_text: '',
+  skill_system: '',
+  dice_mechanics: '',
+  combat_system: '',
+  is_custom: true,
+  is_active: true
+};
+
 export default function Settings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [editingSystem, setEditingSystem] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    core_attributes: [],
-    skill_system: '',
-    dice_mechanics: '',
-    combat_system: '',
-    is_custom: true,
-    is_active: true
-  });
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        await base44.auth.redirectToLogin(createPageUrl('Settings'));
-      }
-    };
-    loadUser();
-  }, []);
+  const [formData, setFormData] = useState(defaultForm);
 
   const { data: systems = [], isLoading } = useQuery({
-    queryKey: ['rpg-systems'],
-    queryFn: () => base44.entities.RpgSystem.list('-created_date'),
+    queryKey: ['rpg-systems', user?.uid],
+    queryFn: () => RpgSystem.list(user.uid),
     enabled: !!user
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.RpgSystem.create(data),
+    mutationFn: (data) => RpgSystem.create({ ...data, userId: user.uid }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['rpg-systems']);
+      queryClient.invalidateQueries(['rpg-systems', user?.uid]);
       setDialogOpen(false);
       resetForm();
     }
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.RpgSystem.update(id, data),
+    mutationFn: ({ id, data }) => RpgSystem.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['rpg-systems']);
+      queryClient.invalidateQueries(['rpg-systems', user?.uid]);
       setDialogOpen(false);
       setEditingSystem(null);
       resetForm();
@@ -73,23 +65,14 @@ export default function Settings() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.RpgSystem.delete(id),
+    mutationFn: (id) => RpgSystem.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['rpg-systems']);
+      queryClient.invalidateQueries(['rpg-systems', user?.uid]);
     }
   });
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      core_attributes: [],
-      skill_system: '',
-      dice_mechanics: '',
-      combat_system: '',
-      is_custom: true,
-      is_active: true
-    });
+    setFormData(defaultForm);
     setEditingSystem(null);
   };
 
@@ -99,6 +82,7 @@ export default function Settings() {
       name: system.name,
       description: system.description || '',
       core_attributes: system.core_attributes || [],
+      core_attributes_text: (system.core_attributes || []).join(', '),
       skill_system: system.skill_system || '',
       dice_mechanics: system.dice_mechanics || '',
       combat_system: system.combat_system || '',
@@ -110,14 +94,13 @@ export default function Settings() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const attributesArray = formData.core_attributes.length > 0 
-      ? formData.core_attributes 
-      : (formData.core_attributes_text || '').split(',').map(s => s.trim()).filter(s => s);
+    const attributesArray = (formData.core_attributes_text || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s);
 
-    const data = {
-      ...formData,
-      core_attributes: attributesArray
-    };
+    const data = { ...formData, core_attributes: attributesArray };
+    delete data.core_attributes_text;
 
     if (editingSystem) {
       updateMutation.mutate({ id: editingSystem.id, data });
@@ -128,7 +111,6 @@ export default function Settings() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      {/* Header */}
       <div>
         <button
           onClick={() => navigate(createPageUrl('Dashboard'))}
@@ -137,20 +119,16 @@ export default function Settings() {
           <ArrowLeft className="w-5 h-5" />
           Voltar ao Dashboard
         </button>
-
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <SettingsIcon className="w-10 h-10 text-purple-400" />
-              <h1 className="text-4xl font-bold text-white">
-                Sistemas de RPG
-              </h1>
+              <h1 className="text-4xl font-bold text-white">Sistemas de RPG</h1>
             </div>
             <p className="text-slate-400 text-lg">
               Gerencie os sistemas de RPG disponíveis para criação de suas campanhas
             </p>
           </div>
-
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button
@@ -167,7 +145,6 @@ export default function Settings() {
                   {editingSystem ? 'Editar Sistema' : 'Novo Sistema de RPG'}
                 </DialogTitle>
               </DialogHeader>
-
               <form onSubmit={handleSubmit} className="space-y-6 py-4">
                 <div>
                   <Label className="text-white mb-2 block">Nome do Sistema *</Label>
@@ -179,7 +156,6 @@ export default function Settings() {
                     className="bg-slate-950/50 border-slate-700 text-white"
                   />
                 </div>
-
                 <div>
                   <Label className="text-white mb-2 block">Descrição</Label>
                   <Textarea
@@ -189,18 +165,16 @@ export default function Settings() {
                     className="bg-slate-950/50 border-slate-700 text-white"
                   />
                 </div>
-
                 <div>
                   <Label className="text-white mb-2 block">Atributos Principais</Label>
                   <Input
-                    value={formData.core_attributes_text || formData.core_attributes.join(', ')}
+                    value={formData.core_attributes_text}
                     onChange={(e) => setFormData({ ...formData, core_attributes_text: e.target.value })}
                     placeholder="Ex: Força, Destreza, Constituição, Inteligência, Sabedoria, Carisma"
                     className="bg-slate-950/50 border-slate-700 text-white"
                   />
                   <p className="text-slate-500 text-sm mt-1">Separe por vírgulas</p>
                 </div>
-
                 <div>
                   <Label className="text-white mb-2 block">Sistema de Perícias</Label>
                   <Textarea
@@ -210,7 +184,6 @@ export default function Settings() {
                     className="bg-slate-950/50 border-slate-700 text-white"
                   />
                 </div>
-
                 <div>
                   <Label className="text-white mb-2 block">Mecânica de Dados</Label>
                   <Input
@@ -220,7 +193,6 @@ export default function Settings() {
                     className="bg-slate-950/50 border-slate-700 text-white"
                   />
                 </div>
-
                 <div>
                   <Label className="text-white mb-2 block">Sistema de Combate</Label>
                   <Textarea
@@ -230,25 +202,21 @@ export default function Settings() {
                     className="bg-slate-950/50 border-slate-700 text-white"
                   />
                 </div>
-
                 <div className="flex justify-end gap-3 pt-4">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setDialogOpen(false);
-                      resetForm();
-                    }}
+                    onClick={() => { setDialogOpen(false); resetForm(); }}
                     className="border-slate-700 text-slate-300"
                   >
                     Cancelar
                   </Button>
                   <Button
                     type="submit"
-                    disabled={createMutation.isLoading || updateMutation.isLoading}
+                    disabled={createMutation.isPending || updateMutation.isPending}
                     className="bg-gradient-to-r from-purple-600 to-purple-700"
                   >
-                    {(createMutation.isLoading || updateMutation.isLoading) ? (
+                    {(createMutation.isPending || updateMutation.isPending) ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Salvando...
@@ -267,7 +235,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Systems List */}
       <div>
         {isLoading ? (
           <div className="text-center py-16">
@@ -277,9 +244,7 @@ export default function Settings() {
         ) : systems.length === 0 ? (
           <div className="text-center py-16 bg-slate-900/30 backdrop-blur-xl border border-slate-800 rounded-2xl">
             <SettingsIcon className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-400 text-lg mb-4">
-              Nenhum sistema cadastrado ainda
-            </p>
+            <p className="text-slate-400 text-lg mb-4">Nenhum sistema cadastrado ainda</p>
             <p className="text-slate-500 text-sm">
               Crie sistemas personalizados para gerar campanhas mais precisas
             </p>
@@ -287,29 +252,19 @@ export default function Settings() {
         ) : (
           <div className="grid md:grid-cols-2 gap-6">
             {systems.map((system) => (
-              <div
-                key={system.id}
-                className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl"
-              >
+              <div key={system.id} className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-xl font-bold text-white">
-                        {system.name}
-                      </h3>
+                      <h3 className="text-xl font-bold text-white">{system.name}</h3>
                       {system.is_custom && (
-                        <span className="px-2 py-1 bg-purple-600/20 text-purple-300 text-xs rounded-lg">
-                          Custom
-                        </span>
+                        <span className="px-2 py-1 bg-purple-600/20 text-purple-300 text-xs rounded-lg">Custom</span>
                       )}
                     </div>
                     {system.description && (
-                      <p className="text-slate-400 text-sm mb-3">
-                        {system.description}
-                      </p>
+                      <p className="text-slate-400 text-sm mb-3">{system.description}</p>
                     )}
                   </div>
-                  
                   <div className="flex gap-2">
                     <Button
                       onClick={() => handleEdit(system)}
@@ -335,31 +290,25 @@ export default function Settings() {
                     )}
                   </div>
                 </div>
-
                 <div className="space-y-3 text-sm">
-                  {system.core_attributes && system.core_attributes.length > 0 && (
+                  {system.core_attributes?.length > 0 && (
                     <div>
                       <span className="text-slate-500">Atributos: </span>
-                      <span className="text-slate-300">
-                        {system.core_attributes.join(', ')}
-                      </span>
+                      <span className="text-slate-300">{system.core_attributes.join(', ')}</span>
                     </div>
                   )}
-                  
                   {system.dice_mechanics && (
                     <div>
                       <span className="text-slate-500">Dados: </span>
                       <span className="text-slate-300">{system.dice_mechanics}</span>
                     </div>
                   )}
-
                   {system.skill_system && (
                     <div>
                       <span className="text-slate-500">Perícias: </span>
                       <span className="text-slate-300">{system.skill_system}</span>
                     </div>
                   )}
-
                   {system.combat_system && (
                     <div>
                       <span className="text-slate-500">Combate: </span>

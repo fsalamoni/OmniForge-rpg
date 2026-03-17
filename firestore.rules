@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users: only the user themselves can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Campaigns: owner has full access; public completed campaigns readable by all authenticated users
+    match /campaigns/{campaignId} {
+      allow read: if request.auth != null &&
+        (resource.data.is_public == true || request.auth.uid == resource.data.userId);
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Campaign steps: readable/writable by authenticated users
+    // (ownership enforced by application logic via campaignId)
+    match /campaignSteps/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // NPC Creatures: readable/writable by authenticated users
+    match /npcCreatures/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // RPG Systems: readable by any authenticated user; only owner can write
+    match /rpgSystems/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Campaign likes: readable/writable by authenticated users
+    match /campaignLikes/{docId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -1,101 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { createPageUrl } from '../utils';
-import { base44 } from '@/api/base44Client';
+import React, { useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';
+import { UserProfile } from '@/firebase/db';
+import { AI_PRESETS } from '@/lib/aiClient';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
   User,
   Mail,
   Save,
   Loader2,
   Shield,
-  Calendar
+  Bot,
+  Eye,
+  EyeOff,
+  ExternalLink
 } from 'lucide-react';
 
 export default function Profile() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, userProfile, refreshProfile } = useAuth();
   const [formData, setFormData] = useState({
-    full_name: '',
-    email: ''
+    full_name: userProfile?.full_name || user?.displayName || ''
   });
+  const [aiProvider, setAiProvider] = useState('openrouter');
+  const [aiConfig, setAiConfig] = useState({
+    baseUrl: userProfile?.aiConfig?.baseUrl || AI_PRESETS.openrouter.baseUrl,
+    apiKey: userProfile?.aiConfig?.apiKey || '',
+    model: userProfile?.aiConfig?.model || ''
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState('');
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-        setFormData({
-          full_name: currentUser.full_name || '',
-          email: currentUser.email || ''
-        });
-      } catch (error) {
-        await base44.auth.redirectToLogin(createPageUrl('Profile'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadUser();
-  }, []);
-
-  const updateMutation = useMutation({
+  const updateProfileMutation = useMutation({
     mutationFn: async (data) => {
-      await base44.auth.updateMe(data);
+      await UserProfile.upsert(user.uid, data);
+      await refreshProfile();
     },
     onSuccess: () => {
-      alert('Perfil atualizado com sucesso!');
-      window.location.reload();
+      setSaveSuccess('profile');
+      setTimeout(() => setSaveSuccess(''), 3000);
     }
   });
 
-  const handleSubmit = (e) => {
+  const updateAiMutation = useMutation({
+    mutationFn: async (config) => {
+      await UserProfile.updateAiConfig(user.uid, config);
+      await refreshProfile();
+    },
+    onSuccess: () => {
+      setSaveSuccess('ai');
+      setTimeout(() => setSaveSuccess(''), 3000);
+    }
+  });
+
+  const handleProfileSubmit = (e) => {
     e.preventDefault();
-    updateMutation.mutate(formData);
+    updateProfileMutation.mutate(formData);
   };
 
-  if (loading) {
+  const handleAiSubmit = (e) => {
+    e.preventDefault();
+    updateAiMutation.mutate(aiConfig);
+  };
+
+  const handleProviderChange = (provider) => {
+    setAiProvider(provider);
+    if (provider !== 'custom') {
+      setAiConfig(prev => ({
+        ...prev,
+        baseUrl: AI_PRESETS[provider].baseUrl
+      }));
+    }
+  };
+
+  const maskedKey = aiConfig.apiKey
+    ? `${'•'.repeat(Math.max(0, aiConfig.apiKey.length - 4))}${aiConfig.apiKey.slice(-4)}`
+    : '';
+
+  if (!user) {
     return (
       <div className="text-center py-16">
-        <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
-        <p className="text-slate-400">Carregando perfil...</p>
+        <p className="text-slate-400">Faça login para acessar seu perfil</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
       <div>
         <div className="flex items-center gap-3 mb-2">
           <User className="w-10 h-10 text-purple-400" />
-          <h1 className="text-4xl font-bold text-white">
-            Meu Perfil
-          </h1>
+          <h1 className="text-4xl font-bold text-white">Meu Perfil</h1>
         </div>
-        <p className="text-slate-400 text-lg">
-          Gerencie suas informações pessoais e preferências
-        </p>
+        <p className="text-slate-400 text-lg">Gerencie suas informações pessoais e preferências</p>
       </div>
 
       {/* Avatar */}
       <Card className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
         <CardContent className="p-8">
           <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-amber-500 flex items-center justify-center text-white text-4xl font-bold">
-              {user?.full_name?.[0] || user?.email[0].toUpperCase()}
-            </div>
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt="Avatar"
+                className="w-24 h-24 rounded-full border-4 border-purple-500/30"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-amber-500 flex items-center justify-center text-white text-4xl font-bold">
+                {(user.displayName || user.email)?.[0]?.toUpperCase()}
+              </div>
+            )}
             <div>
               <h2 className="text-2xl font-bold text-white mb-1">
-                {user?.full_name || 'Usuário'}
+                {userProfile?.full_name || user.displayName || 'Usuário'}
               </h2>
-              <p className="text-slate-400">{user?.email}</p>
+              <p className="text-slate-400">{user.email}</p>
               <div className="flex items-center gap-2 mt-2">
                 <Shield className="w-4 h-4 text-purple-400" />
                 <span className="text-sm text-purple-300 capitalize">
-                  {user?.role || 'user'}
+                  {userProfile?.role || 'user'}
                 </span>
               </div>
             </div>
@@ -103,17 +129,15 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* Formulário */}
+      {/* Informações Pessoais */}
       <Card className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
         <CardHeader>
           <CardTitle className="text-white">Informações Pessoais</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleProfileSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="full_name" className="text-white mb-2 block">
-                Nome Completo
-              </Label>
+              <Label htmlFor="full_name" className="text-white mb-2 block">Nome Completo</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
@@ -125,42 +149,28 @@ export default function Profile() {
                 />
               </div>
             </div>
-
             <div>
-              <Label htmlFor="email" className="text-white mb-2 block">
-                E-mail
-              </Label>
+              <Label className="text-white mb-2 block">E-mail</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
+                  value={user.email}
                   disabled
                   className="pl-10 bg-slate-950/50 border-slate-700 text-slate-500 cursor-not-allowed"
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                O e-mail não pode ser alterado
-              </p>
+              <p className="text-xs text-slate-500 mt-1">O e-mail é gerenciado pelo Google</p>
             </div>
-
             <div className="flex justify-end">
               <Button
                 type="submit"
-                disabled={updateMutation.isLoading}
+                disabled={updateProfileMutation.isPending}
                 className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white"
               >
-                {updateMutation.isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
+                {updateProfileMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
                 ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Salvar Alterações
-                  </>
+                  <><Save className="w-4 h-4 mr-2" />{saveSuccess === 'profile' ? '✓ Salvo!' : 'Salvar Alterações'}</>
                 )}
               </Button>
             </div>
@@ -168,44 +178,123 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* Informações da Conta */}
+      {/* Configuração de IA */}
       <Card className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
         <CardHeader>
-          <CardTitle className="text-white">Informações da Conta</CardTitle>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Bot className="w-6 h-6 text-purple-400" />
+            Configuração de IA
+          </CardTitle>
+          <p className="text-slate-400 text-sm mt-1">
+            Configure sua chave de API para gerar campanhas com IA. A chave é armazenada de forma segura na sua conta.
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between py-3 border-b border-slate-800">
-            <div className="flex items-center gap-2 text-slate-300">
-              <Calendar className="w-4 h-4 text-slate-500" />
-              <span>Membro desde</span>
+        <CardContent>
+          <form onSubmit={handleAiSubmit} className="space-y-6">
+            {/* Provider */}
+            <div>
+              <Label className="text-white mb-2 block">Provedor de IA</Label>
+              <Select value={aiProvider} onValueChange={handleProviderChange}>
+                <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(AI_PRESETS).map(([key, preset]) => (
+                    <SelectItem key={key} value={key}>{preset.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {AI_PRESETS[aiProvider]?.docsUrl && (
+                <a
+                  href={AI_PRESETS[aiProvider].docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 mt-2"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Obter chave de API
+                </a>
+              )}
             </div>
-            <span className="text-white font-medium">
-              {user?.created_date 
-                ? new Date(user.created_date).toLocaleDateString('pt-BR')
-                : 'N/A'
-              }
-            </span>
-          </div>
 
-          <div className="flex items-center justify-between py-3 border-b border-slate-800">
-            <div className="flex items-center gap-2 text-slate-300">
-              <Shield className="w-4 h-4 text-slate-500" />
-              <span>Tipo de conta</span>
+            {/* Base URL */}
+            <div>
+              <Label className="text-white mb-2 block">URL Base da API</Label>
+              <Input
+                value={aiConfig.baseUrl}
+                onChange={(e) => setAiConfig({ ...aiConfig, baseUrl: e.target.value })}
+                placeholder="https://openrouter.ai/api/v1"
+                required
+                className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Deve ser compatível com OpenAI Chat Completions API
+              </p>
             </div>
-            <span className="text-white font-medium capitalize">
-              {user?.role || 'user'}
-            </span>
-          </div>
 
-          <div className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-2 text-slate-300">
-              <Mail className="w-4 h-4 text-slate-500" />
-              <span>E-mail verificado</span>
+            {/* API Key */}
+            <div>
+              <Label className="text-white mb-2 block">Chave de API</Label>
+              <div className="relative">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={aiConfig.apiKey}
+                  onChange={(e) => setAiConfig({ ...aiConfig, apiKey: e.target.value })}
+                  placeholder={userProfile?.aiConfig?.apiKey ? maskedKey : 'sk-... ou sua chave de API'}
+                  required={!userProfile?.aiConfig?.apiKey}
+                  className="pr-10 bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {userProfile?.aiConfig?.apiKey && (
+                <p className="text-xs text-green-500 mt-1">✓ Chave configurada. Deixe em branco para manter a atual.</p>
+              )}
             </div>
-            <span className="text-green-400 font-medium">
-              Sim
-            </span>
-          </div>
+
+            {/* Model */}
+            <div>
+              <Label className="text-white mb-2 block">Modelo</Label>
+              <Input
+                value={aiConfig.model}
+                onChange={(e) => setAiConfig({ ...aiConfig, model: e.target.value })}
+                placeholder={AI_PRESETS[aiProvider]?.modelPlaceholder || 'model-name'}
+                required
+                className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                {aiProvider === 'openrouter' && 'Ex: openai/gpt-4o, anthropic/claude-3-5-sonnet, google/gemini-2.0-flash'}
+                {aiProvider === 'openai' && 'Ex: gpt-4o, gpt-4o-mini, gpt-3.5-turbo'}
+                {aiProvider === 'gemini' && 'Ex: gemini-2.0-flash, gemini-1.5-pro'}
+                {aiProvider === 'custom' && 'Nome do modelo conforme aceito pela sua API'}
+              </p>
+            </div>
+
+            <div className="p-4 bg-blue-900/20 border border-blue-500/20 rounded-lg">
+              <p className="text-blue-300 text-sm">
+                💡 <strong>Dica:</strong> Recomendamos o <strong>OpenRouter</strong> pois dá acesso a todos os modelos de IA (GPT-4, Claude, Gemini) com uma única chave. O modelo <code className="text-blue-200">openai/gpt-4o</code> é uma ótima escolha para criação de campanhas.
+              </p>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                disabled={updateAiMutation.isPending}
+                className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white"
+              >
+                {updateAiMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
+                ) : (
+                  <><Save className="w-4 h-4 mr-2" />{saveSuccess === 'ai' ? '✓ Configuração Salva!' : 'Salvar Configuração de IA'}</>
+                )}
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { Campaign, CampaignStep, NpcCreature, RpgSystem } from '@/firebase/db';
+import { invokeLLM } from '@/lib/aiClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -90,20 +92,18 @@ const QUESTIONS_5W2H = [
   }
 ];
 
+const DEFAULT_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Vampire: The Masquerade', 'Savage Worlds', 'GURPS', 'Outro'];
+
 export default function Generator() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const campaignId = searchParams.get('id');
+  const { user, userProfile } = useAuth();
 
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [availableSystems, setAvailableSystems] = useState([]);
-  
-  // Etapa atual: 0 = inicial, 1-7 = perguntas, 8 = criatividade, 9 = gerando
+  const [availableSystems, setAvailableSystems] = useState(DEFAULT_SYSTEMS);
   const [currentStep, setCurrentStep] = useState(0);
-  
-  // Dados do formulário inicial
   const [formData, setFormData] = useState({
     title: '',
     system_rpg: 'D&D 5e',
@@ -111,42 +111,26 @@ export default function Generator() {
     duration_type: 'One-shot',
     players_count: 4
   });
-
-  // Respostas das perguntas
   const [answers, setAnswers] = useState({});
-  
-  // Nível de criatividade
   const [creativityLevel, setCreativityLevel] = useState(2);
-
-  // ID da campanha sendo criada/editada
   const [activeCampaignId, setActiveCampaignId] = useState(campaignId);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        await base44.auth.redirectToLogin(createPageUrl('Generator'));
-      }
-    };
-    loadUser();
-  }, []);
-
-  useEffect(() => {
     const loadSystems = async () => {
+      if (!user) return;
       try {
-        const systems = await base44.entities.RpgSystem.filter({ is_active: true });
-        setAvailableSystems(systems);
-      } catch (error) {
-        console.error('Erro ao carregar sistemas:', error);
+        const systems = await RpgSystem.list(user.uid);
+        if (systems.length > 0) {
+          setAvailableSystems(systems.map(s => s.name));
+        }
+      } catch (err) {
+        console.error('Erro ao carregar sistemas:', err);
       }
     };
     loadSystems();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    // Carregar campanha existente se houver ID
     if (campaignId && user) {
       loadExistingCampaign();
     }
@@ -154,10 +138,8 @@ export default function Generator() {
 
   const loadExistingCampaign = async () => {
     try {
-      const campaigns = await base44.entities.Campaign.list();
-      const campaign = campaigns.find(c => c.id === campaignId);
-      
-      if (campaign && campaign.created_by === user.email) {
+      const campaign = await Campaign.get(campaignId);
+      if (campaign && campaign.userId === user.uid) {
         setFormData({
           title: campaign.title,
           system_rpg: campaign.system_rpg,
@@ -165,48 +147,41 @@ export default function Generator() {
           duration_type: campaign.duration_type,
           players_count: campaign.players_count
         });
-        setCreativityLevel(campaign.creativity_level);
-        setCurrentStep(campaign.current_step);
+        setCreativityLevel(campaign.creativity_level || 2);
+        setCurrentStep(campaign.current_step || 0);
 
-        // Carregar respostas existentes
-        const steps = await base44.entities.CampaignStep.filter({ campaign_id: campaignId });
+        const steps = await CampaignStep.listByCampaign(campaignId);
         const answersObj = {};
         steps.forEach(step => {
           answersObj[step.question_key] = step.user_answer;
         });
         setAnswers(answersObj);
       }
-    } catch (error) {
-      console.error('Erro ao carregar campanha:', error);
+    } catch (err) {
+      console.error('Erro ao carregar campanha:', err);
     }
   };
 
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (activeCampaignId) {
-        // Atualizar campanha existente
-        await base44.entities.Campaign.update(activeCampaignId, {
-          ...formData,
-          current_step: 1
-        });
+        await Campaign.update(activeCampaignId, { ...formData, current_step: 1 });
       } else {
-        // Criar nova campanha
-        const newCampaign = await base44.entities.Campaign.create({
+        const newCampaign = await Campaign.create({
           ...formData,
           current_step: 1,
           creativity_level: creativityLevel,
           is_completed: false,
-          is_public: false
+          is_public: false,
+          userId: user.uid
         });
         setActiveCampaignId(newCampaign.id);
       }
-      
       setCurrentStep(1);
-    } catch (error) {
-      console.error('Erro ao criar campanha:', error);
+    } catch (err) {
+      console.error('Erro ao criar campanha:', err);
       alert('Erro ao criar campanha. Tente novamente.');
     } finally {
       setLoading(false);
@@ -215,44 +190,25 @@ export default function Generator() {
 
   const handleAnswerSubmit = async () => {
     if (!activeCampaignId) return;
-    
     setLoading(true);
     const currentQuestion = QUESTIONS_5W2H[currentStep - 1];
     const answer = answers[currentQuestion.key] || '';
 
     try {
-      // Salvar resposta
-      const existingSteps = await base44.entities.CampaignStep.filter({
-        campaign_id: activeCampaignId,
-        question_key: currentQuestion.key
+      await CampaignStep.upsert(activeCampaignId, currentQuestion.key, {
+        question_text: currentQuestion.title,
+        user_answer: answer,
+        order_index: currentStep
       });
-
-      if (existingSteps.length > 0) {
-        await base44.entities.CampaignStep.update(existingSteps[0].id, {
-          user_answer: answer
-        });
-      } else {
-        await base44.entities.CampaignStep.create({
-          campaign_id: activeCampaignId,
-          question_key: currentQuestion.key,
-          question_text: currentQuestion.title,
-          user_answer: answer,
-          order_index: currentStep
-        });
-      }
-
-      // Atualizar progresso
-      await base44.entities.Campaign.update(activeCampaignId, {
-        current_step: currentStep + 1
-      });
+      await Campaign.update(activeCampaignId, { current_step: currentStep + 1 });
 
       if (currentStep < 7) {
         setCurrentStep(currentStep + 1);
       } else {
-        setCurrentStep(8); // Etapa de criatividade
+        setCurrentStep(8);
       }
-    } catch (error) {
-      console.error('Erro ao salvar resposta:', error);
+    } catch (err) {
+      console.error('Erro ao salvar resposta:', err);
       alert('Erro ao salvar resposta. Tente novamente.');
     } finally {
       setLoading(false);
@@ -261,20 +217,17 @@ export default function Generator() {
 
   const handleFinalGeneration = async () => {
     if (!activeCampaignId) return;
-    
+
+    if (!userProfile?.aiConfig) {
+      alert('Configure sua chave de IA no Perfil antes de gerar campanhas.\n\nAcesse: Perfil → Configuração de IA');
+      return;
+    }
+
     setGenerating(true);
-
     try {
-      // Atualizar nível de criatividade
-      await base44.entities.Campaign.update(activeCampaignId, {
-        creativity_level: creativityLevel
-      });
+      await Campaign.update(activeCampaignId, { creativity_level: creativityLevel });
 
-      // Buscar todas as respostas
-      const steps = await base44.entities.CampaignStep.filter({
-        campaign_id: activeCampaignId
-      });
-
+      const steps = await CampaignStep.listByCampaign(activeCampaignId);
       if (!steps || steps.length === 0) {
         throw new Error('Nenhuma resposta encontrada. Complete as 7 perguntas primeiro.');
       }
@@ -284,38 +237,60 @@ export default function Generator() {
         .map(s => `${s.question_text}: ${s.user_answer}`)
         .join('\n');
 
-      // Criar prompt estruturado
+      const creativityInstructions = [
+        'Siga estritamente as informações fornecidas, sem adicionar elementos extras.',
+        'Siga as informações com pequenos detalhes adicionais.',
+        'Use as informações como base e adicione elementos criativos moderados.',
+        'Tenha liberdade para expandir as ideias com criatividade.',
+        'Crie conteúdo muito além do básico, com reviravoltas inesperadas.',
+        'Tenha liberdade total para criar, usando as respostas apenas como inspiração.'
+      ][creativityLevel];
+
       const prompt = `Você é um mestre de RPG criando uma campanha para ${formData.system_rpg}.
 
 Ambientação: ${formData.setting}
 Duração: ${formData.duration_type}
 Jogadores: ${formData.players_count}
 
-Informações da campanha:
+Informações da campanha (5W2H):
 ${answersText}
 
-Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs interessantes e encontros balanceados.`;
+Nível de criatividade ${creativityLevel}/5: ${creativityInstructions}
 
-      // Schema JSON COMPLETO e VÁLIDO
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: prompt,
-        response_json_schema: {
+Crie uma campanha completa em português do Brasil com resumo narrativo envolvente, 3-5 ganchos de aventura, 3-5 NPCs importantes e 3-5 encontros balanceados para ${formData.players_count} jogadores.
+
+Responda em JSON com a seguinte estrutura:
+{
+  "adventure_summary": "Resumo completo da aventura",
+  "plot_hooks": ["gancho 1", "gancho 2", "gancho 3"],
+  "npcs": [
+    {
+      "name": "Nome",
+      "role": "Papel na história",
+      "motivation": "Motivação do personagem",
+      "description": "Descrição detalhada"
+    }
+  ],
+  "encounters": [
+    {
+      "name": "Nome do encontro",
+      "difficulty": "Fácil/Médio/Difícil/Mortal",
+      "description": "Descrição do encontro",
+      "creatures": [{"name": "Criatura", "quantity": 2}],
+      "tactics": "Táticas de combate"
+    }
+  ]
+}`;
+
+      const result = await invokeLLM({
+        prompt,
+        responseSchema: {
           type: 'object',
           properties: {
-            adventure_summary: { 
-              type: 'string',
-              description: 'Resumo completo da aventura'
-            },
-            plot_hooks: { 
+            adventure_summary: { type: 'string' },
+            plot_hooks: { type: 'array', items: { type: 'string' } },
+            npcs: {
               type: 'array',
-              description: 'Lista de ganchos de aventura',
-              items: { 
-                type: 'string' 
-              }
-            },
-            npcs: { 
-              type: 'array',
-              description: 'Lista de NPCs importantes',
               items: {
                 type: 'object',
                 properties: {
@@ -327,9 +302,8 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
                 required: ['name', 'role', 'description']
               }
             },
-            encounters: { 
+            encounters: {
               type: 'array',
-              description: 'Lista de encontros',
               items: {
                 type: 'object',
                 properties: {
@@ -353,15 +327,10 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
             }
           },
           required: ['adventure_summary', 'plot_hooks', 'npcs', 'encounters']
-        }
+        },
+        userAIConfig: userProfile.aiConfig
       });
 
-      // Validar e normalizar resultado
-      if (!result || typeof result !== 'object') {
-        throw new Error('Resposta inválida da IA. Tente novamente.');
-      }
-
-      // Garantir estrutura mínima
       const normalizedResult = {
         adventure_summary: result.adventure_summary || 'Sem resumo disponível',
         plot_hooks: Array.isArray(result.plot_hooks) ? result.plot_hooks : [],
@@ -369,40 +338,34 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
         encounters: Array.isArray(result.encounters) ? result.encounters : []
       };
 
-      // Salvar resultado normalizado
-      await base44.entities.Campaign.update(activeCampaignId, {
+      await Campaign.update(activeCampaignId, {
         content_json: normalizedResult,
         is_completed: true,
         current_step: 8
       });
 
-      // Criar registros de NPCs com validação
       if (normalizedResult.npcs.length > 0) {
-        const npcPromises = normalizedResult.npcs
-          .filter(npc => npc && typeof npc === 'object' && npc.name)
-          .map(npc => 
-            base44.entities.NpcCreature.create({
-              campaign_id: activeCampaignId,
-              name: npc.name,
-              type: 'NPC',
-              role: npc.role || 'Personagem',
-              motivation: npc.motivation || 'Não especificada',
-              description: npc.description || 'Sem descrição',
-              stats_json: (npc.stats && typeof npc.stats === 'object') ? npc.stats : {}
-            })
-          );
-        
-        if (npcPromises.length > 0) {
-          await Promise.all(npcPromises);
-        }
+        await Promise.all(
+          normalizedResult.npcs
+            .filter(npc => npc && npc.name)
+            .map(npc =>
+              NpcCreature.create({
+                campaignId: activeCampaignId,
+                name: npc.name,
+                type: 'NPC',
+                role: npc.role || 'Personagem',
+                motivation: npc.motivation || 'Não especificada',
+                description: npc.description || 'Sem descrição',
+                stats_json: {}
+              })
+            )
+        );
       }
 
-      // Redirecionar para visualização
       navigate(createPageUrl('CampaignView') + '?id=' + activeCampaignId);
-    } catch (error) {
-      console.error('Erro detalhado:', error);
-      const errorMessage = error.message || 'Erro desconhecido ao gerar campanha';
-      alert(`Erro: ${errorMessage}\n\nTente novamente ou ajuste suas respostas.`);
+    } catch (err) {
+      console.error('Erro ao gerar campanha:', err);
+      alert(`Erro: ${err.message}\n\nTente novamente ou ajuste suas respostas.`);
     } finally {
       setGenerating(false);
     }
@@ -419,25 +382,19 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
           <ArrowLeft className="w-5 h-5" />
           Voltar ao Dashboard
         </button>
-
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <Wand2 className="w-10 h-10 text-purple-400" />
-            <h1 className="text-4xl font-bold text-white">
-              Novo Gerador de Campanha
-            </h1>
+            <h1 className="text-4xl font-bold text-white">Novo Gerador de Campanha</h1>
           </div>
           <p className="text-slate-400 text-lg">
             Vamos começar definindo os parâmetros básicos da sua aventura
           </p>
         </div>
-
         <form onSubmit={handleInitialSubmit} className="space-y-6">
           <div className="p-8 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl space-y-6">
             <div>
-              <Label htmlFor="title" className="text-white mb-2 block">
-                Título da Campanha *
-              </Label>
+              <Label htmlFor="title" className="text-white mb-2 block">Título da Campanha *</Label>
               <Input
                 id="title"
                 value={formData.title}
@@ -447,37 +404,23 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
                 className="bg-slate-950/50 border-slate-700 text-white"
               />
             </div>
-
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <Label htmlFor="system" className="text-white mb-2 block">
-                  Sistema de RPG *
-                </Label>
-                <Select
-                  value={formData.system_rpg}
-                  onValueChange={(value) => setFormData({ ...formData, system_rpg: value })}
-                >
+                <Label className="text-white mb-2 block">Sistema de RPG *</Label>
+                <Select value={formData.system_rpg} onValueChange={(value) => setFormData({ ...formData, system_rpg: value })}>
                   <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {availableSystems.map((system) => (
-                      <SelectItem key={system.id} value={system.name}>
-                        {system.name}
-                      </SelectItem>
+                      <SelectItem key={system} value={system}>{system}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
               <div>
-                <Label htmlFor="setting" className="text-white mb-2 block">
-                  Ambientação *
-                </Label>
-                <Select
-                  value={formData.setting}
-                  onValueChange={(value) => setFormData({ ...formData, setting: value })}
-                >
+                <Label className="text-white mb-2 block">Ambientação *</Label>
+                <Select value={formData.setting} onValueChange={(value) => setFormData({ ...formData, setting: value })}>
                   <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
                     <SelectValue />
                   </SelectTrigger>
@@ -493,15 +436,9 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
                   </SelectContent>
                 </Select>
               </div>
-
               <div>
-                <Label htmlFor="duration" className="text-white mb-2 block">
-                  Duração *
-                </Label>
-                <Select
-                  value={formData.duration_type}
-                  onValueChange={(value) => setFormData({ ...formData, duration_type: value })}
-                >
+                <Label className="text-white mb-2 block">Duração *</Label>
+                <Select value={formData.duration_type} onValueChange={(value) => setFormData({ ...formData, duration_type: value })}>
                   <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
                     <SelectValue />
                   </SelectTrigger>
@@ -512,13 +449,9 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
                   </SelectContent>
                 </Select>
               </div>
-
               <div>
-                <Label htmlFor="players" className="text-white mb-2 block">
-                  Número de Jogadores *
-                </Label>
+                <Label className="text-white mb-2 block">Número de Jogadores *</Label>
                 <Input
-                  id="players"
                   type="number"
                   min="1"
                   max="10"
@@ -530,7 +463,6 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
               </div>
             </div>
           </div>
-
           <div className="flex justify-end">
             <Button
               type="submit"
@@ -538,15 +470,9 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
               className="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl font-semibold transition-all shadow-lg flex items-center gap-2"
             >
               {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Salvando...
-                </>
+                <><Loader2 className="w-5 h-5 animate-spin" />Salvando...</>
               ) : (
-                <>
-                  Iniciar Interrogatório 5W2H
-                  <Sparkles className="w-5 h-5" />
-                </>
+                <>Iniciar Interrogatório 5W2H<Sparkles className="w-5 h-5" /></>
               )}
             </Button>
           </div>
@@ -558,7 +484,6 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
   // Etapas 1-7: Perguntas 5W2H
   if (currentStep >= 1 && currentStep <= 7) {
     const question = QUESTIONS_5W2H[currentStep - 1];
-    
     return (
       <div className="max-w-4xl mx-auto">
         <button
@@ -568,18 +493,11 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
           <ArrowLeft className="w-5 h-5" />
           Voltar
         </button>
-
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            {formData.title}
-          </h1>
-          <p className="text-slate-400">
-            {formData.system_rpg} • {formData.setting}
-          </p>
+          <h1 className="text-4xl font-bold text-white mb-2">{formData.title}</h1>
+          <p className="text-slate-400">{formData.system_rpg} • {formData.setting}</p>
         </div>
-
         <ProgressBar currentStep={currentStep - 1} totalSteps={7} />
-
         <QuestionCard
           question={question}
           answer={answers[question.key] || ''}
@@ -602,16 +520,12 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
           <ArrowLeft className="w-5 h-5" />
           Voltar
         </button>
-
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Nível de Criatividade
-          </h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Nível de Criatividade</h1>
           <p className="text-slate-400 text-lg">
             Escolha quanta liberdade criativa a IA terá ao gerar sua campanha
           </p>
         </div>
-
         <div className="p-8 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl space-y-8">
           <div>
             <div className="flex justify-between items-center mb-4">
@@ -619,15 +533,9 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
                 Nível: <span className="text-purple-400 font-bold">{creativityLevel}</span>
               </Label>
               <span className="text-sm text-slate-400">
-                {creativityLevel === 0 && 'Totalmente Fiel'}
-                {creativityLevel === 1 && 'Muito Fiel'}
-                {creativityLevel === 2 && 'Equilibrado'}
-                {creativityLevel === 3 && 'Criativo'}
-                {creativityLevel === 4 && 'Muito Criativo'}
-                {creativityLevel === 5 && 'Liberdade Total'}
+                {['Totalmente Fiel', 'Muito Fiel', 'Equilibrado', 'Criativo', 'Muito Criativo', 'Liberdade Total'][creativityLevel]}
               </span>
             </div>
-            
             <input
               type="range"
               min="0"
@@ -636,17 +544,10 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
               onChange={(e) => setCreativityLevel(parseInt(e.target.value))}
               className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-600"
             />
-
             <div className="flex justify-between text-xs text-slate-500 mt-2">
-              <span>0</span>
-              <span>1</span>
-              <span>2</span>
-              <span>3</span>
-              <span>4</span>
-              <span>5</span>
+              {[0, 1, 2, 3, 4, 5].map(n => <span key={n}>{n}</span>)}
             </div>
           </div>
-
           <div className="p-6 bg-purple-900/10 border border-purple-500/20 rounded-lg">
             <h3 className="text-white font-semibold mb-2">
               {creativityLevel <= 1 && 'Modo Fiel'}
@@ -663,8 +564,22 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
               {creativityLevel === 5 && 'A IA terá liberdade total para criar, usando suas respostas apenas como inspiração.'}
             </p>
           </div>
-        </div>
 
+          {!userProfile?.aiConfig && (
+            <div className="p-4 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+              <p className="text-amber-300 text-sm">
+                ⚠️ Configure sua chave de IA no{' '}
+                <button
+                  onClick={() => navigate(createPageUrl('Profile'))}
+                  className="underline hover:text-amber-200"
+                >
+                  Perfil
+                </button>{' '}
+                antes de gerar a campanha.
+              </p>
+            </div>
+          )}
+        </div>
         <div className="mt-8 flex justify-end">
           <Button
             onClick={handleFinalGeneration}
@@ -672,15 +587,9 @@ Crie uma campanha completa com resumo narrativo, 3 ganchos de aventura, NPCs int
             className="px-10 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-purple-500/30 flex items-center gap-3"
           >
             {generating ? (
-              <>
-                <Loader2 className="w-6 h-6 animate-spin" />
-                Gerando sua campanha...
-              </>
+              <><Loader2 className="w-6 h-6 animate-spin" />Gerando sua campanha...</>
             ) : (
-              <>
-                <Sparkles className="w-6 h-6" />
-                Gerar Campanha Completa
-              </>
+              <><Sparkles className="w-6 h-6" />Gerar Campanha Completa</>
             )}
           </Button>
         </div>

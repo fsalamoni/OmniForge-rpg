@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
+import { Campaign, NpcCreature } from '@/firebase/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,18 +13,17 @@ import EditableSection from '../components/campaign-view/EditableSection';
 import EncounterCard from '../components/campaign-view/EncounterCard';
 import PlotHooksList from '../components/campaign-view/PlotHooksList';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  ArrowLeft, 
-  BookOpen, 
-  Users, 
+import {
+  ArrowLeft,
+  BookOpen,
+  Users,
   StickyNote,
   Settings,
   Globe,
   Lock,
   Loader2,
   Share2,
-  Sparkles,
-  Filter
+  Sparkles
 } from 'lucide-react';
 
 export default function CampaignView() {
@@ -31,32 +31,17 @@ export default function CampaignView() {
   const [searchParams] = useSearchParams();
   const campaignId = searchParams.get('id');
   const queryClient = useQueryClient();
-  
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
+
   const [masterNotes, setMasterNotes] = useState('');
   const [notesChanged, setNotesChanged] = useState(false);
   const [npcFilter, setNpcFilter] = useState('all');
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        await base44.auth.redirectToLogin(createPageUrl('CampaignView') + '?id=' + campaignId);
-      }
-    };
-    loadUser();
-  }, []);
-
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', campaignId],
     queryFn: async () => {
-      const campaigns = await base44.entities.Campaign.list();
-      const camp = campaigns.find(c => c.id === campaignId);
-      if (camp) {
-        setMasterNotes(camp.master_notes || '');
-      }
+      const camp = await Campaign.get(campaignId);
+      if (camp) setMasterNotes(camp.master_notes || '');
       return camp;
     },
     enabled: !!campaignId
@@ -64,12 +49,12 @@ export default function CampaignView() {
 
   const { data: npcs = [] } = useQuery({
     queryKey: ['npcs', campaignId],
-    queryFn: () => base44.entities.NpcCreature.filter({ campaign_id: campaignId }),
+    queryFn: () => NpcCreature.listByCampaign(campaignId),
     enabled: !!campaignId
   });
 
   const updateNotesMutation = useMutation({
-    mutationFn: () => base44.entities.Campaign.update(campaignId, { master_notes: masterNotes }),
+    mutationFn: () => Campaign.update(campaignId, { master_notes: masterNotes }),
     onSuccess: () => {
       queryClient.invalidateQueries(['campaign', campaignId]);
       setNotesChanged(false);
@@ -77,17 +62,13 @@ export default function CampaignView() {
   });
 
   const togglePublicMutation = useMutation({
-    mutationFn: () => base44.entities.Campaign.update(campaignId, { is_public: !campaign.is_public }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['campaign', campaignId]);
-    }
+    mutationFn: () => Campaign.update(campaignId, { is_public: !campaign.is_public }),
+    onSuccess: () => queryClient.invalidateQueries(['campaign', campaignId])
   });
 
   const updateContentMutation = useMutation({
-    mutationFn: (newContent) => base44.entities.Campaign.update(campaignId, { content_json: newContent }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['campaign', campaignId]);
-    }
+    mutationFn: (newContent) => Campaign.update(campaignId, { content_json: newContent }),
+    onSuccess: () => queryClient.invalidateQueries(['campaign', campaignId])
   });
 
   const handleUpdateSummary = async (newSummary) => {
@@ -101,11 +82,7 @@ export default function CampaignView() {
   };
 
   if (!campaignId) {
-    return (
-      <div className="text-center py-16">
-        <p className="text-slate-400">ID de campanha não fornecido</p>
-      </div>
-    );
+    return <div className="text-center py-16"><p className="text-slate-400">ID de campanha não fornecido</p></div>;
   }
 
   if (isLoading) {
@@ -129,11 +106,10 @@ export default function CampaignView() {
   }
 
   const content = campaign.content_json || {};
-  const isOwner = campaign.created_by === user?.email;
+  const isOwner = campaign.userId === user?.uid;
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      {/* Header */}
       <div>
         <button
           onClick={() => navigate(createPageUrl('MyCampaigns'))}
@@ -142,16 +118,12 @@ export default function CampaignView() {
           <ArrowLeft className="w-5 h-5" />
           Voltar para Campanhas
         </button>
-
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
               <Sparkles className="w-8 h-8 text-purple-400" />
-              <h1 className="text-4xl font-bold text-white">
-                {campaign.title}
-              </h1>
+              <h1 className="text-4xl font-bold text-white">{campaign.title}</h1>
             </div>
-            
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="px-3 py-1 bg-purple-600/20 text-purple-300 text-sm font-medium rounded-lg border border-purple-500/30">
                 {campaign.system_rpg}
@@ -166,12 +138,10 @@ export default function CampaignView() {
                 {campaign.players_count} jogadores
               </span>
             </div>
-
             <p className="text-slate-400">
               Nível de criatividade: <span className="text-purple-400 font-semibold">{campaign.creativity_level}/5</span>
             </p>
           </div>
-
           {isOwner && (
             <div className="flex gap-3">
               <Button
@@ -186,7 +156,6 @@ export default function CampaignView() {
         </div>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="narrative" className="space-y-6">
         <TabsList className="bg-slate-900/50 border border-purple-900/20 p-1">
           <TabsTrigger value="narrative" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
@@ -207,9 +176,7 @@ export default function CampaignView() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab: Narrativa */}
         <TabsContent value="narrative" className="space-y-6">
-          {/* Resumo da Aventura - Editável */}
           {content.adventure_summary && isOwner && (
             <EditableSection
               title="Resumo da Aventura"
@@ -218,35 +185,22 @@ export default function CampaignView() {
               icon={BookOpen}
             />
           )}
-
           {content.adventure_summary && !isOwner && (
             <div className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl">
               <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
                 <BookOpen className="w-6 h-6 text-purple-400" />
                 Resumo da Aventura
               </h2>
-              <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
-                {content.adventure_summary}
-              </p>
+              <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{content.adventure_summary}</p>
             </div>
           )}
-
-          {/* Ganchos de Aventura */}
-          {content.plot_hooks && content.plot_hooks.length > 0 && (
-            <PlotHooksList 
-              hooks={content.plot_hooks} 
-              onSave={handleUpdateHooks}
-              isOwner={isOwner}
-            />
+          {content.plot_hooks?.length > 0 && (
+            <PlotHooksList hooks={content.plot_hooks} onSave={handleUpdateHooks} isOwner={isOwner} />
           )}
-
-          {/* Encontros */}
-          {content.encounters && content.encounters.length > 0 && (
+          {content.encounters?.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">
-                  Encontros Balanceados
-                </h2>
+                <h2 className="text-2xl font-bold text-white">Encontros Balanceados</h2>
                 <span className="text-slate-400">
                   {content.encounters.length} {content.encounters.length === 1 ? 'encontro' : 'encontros'}
                 </span>
@@ -258,20 +212,15 @@ export default function CampaignView() {
           )}
         </TabsContent>
 
-        {/* Tab: NPCs */}
         <TabsContent value="npcs">
           <div className="space-y-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-white mb-1">
-                  Personagens e Criaturas
-                </h2>
+                <h2 className="text-2xl font-bold text-white mb-1">Personagens e Criaturas</h2>
                 <span className="text-slate-400">
-                  {npcs.filter(n => npcFilter === 'all' || n.type === npcFilter).length} {' '}
-                  {npcs.filter(n => npcFilter === 'all' || n.type === npcFilter).length === 1 ? 'personagem' : 'personagens'}
+                  {npcs.filter(n => npcFilter === 'all' || n.type === npcFilter).length} personagens
                 </span>
               </div>
-              
               <div className="flex gap-3">
                 <Select value={npcFilter} onValueChange={setNpcFilter}>
                   <SelectTrigger className="w-40 bg-slate-900/50 border-slate-700 text-white">
@@ -285,7 +234,6 @@ export default function CampaignView() {
                     <SelectItem value="Monster">Monstros</SelectItem>
                   </SelectContent>
                 </Select>
-                
                 {isOwner && (
                   <GenerateNpcDialog
                     campaignId={campaignId}
@@ -296,7 +244,6 @@ export default function CampaignView() {
                 )}
               </div>
             </div>
-
             {npcs.length === 0 ? (
               <div className="text-center py-16 bg-slate-900/30 backdrop-blur-xl border border-slate-800 rounded-2xl">
                 <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
@@ -314,58 +261,40 @@ export default function CampaignView() {
           </div>
         </TabsContent>
 
-        {/* Tab: Notas do Mestre */}
         <TabsContent value="notes">
           <div className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              Notas do Mestre
-            </h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Notas do Mestre</h2>
             <p className="text-slate-400 mb-4">
               Use este espaço para adicionar suas próprias anotações, ideias e modificações.
             </p>
-            
             <Textarea
               value={masterNotes}
-              onChange={(e) => {
-                setMasterNotes(e.target.value);
-                setNotesChanged(true);
-              }}
+              onChange={(e) => { setMasterNotes(e.target.value); setNotesChanged(true); }}
               placeholder="Adicione suas notas aqui..."
               className="min-h-[300px] bg-slate-950/50 border-slate-700 text-white"
               disabled={!isOwner}
             />
-
             {isOwner && notesChanged && (
               <div className="flex justify-end mt-4">
                 <Button
                   onClick={() => updateNotesMutation.mutate()}
-                  disabled={updateNotesMutation.isLoading}
+                  disabled={updateNotesMutation.isPending}
                   className="bg-purple-600 hover:bg-purple-700"
                 >
-                  {updateNotesMutation.isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    'Salvar Notas'
-                  )}
+                  {updateNotesMutation.isPending ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
+                  ) : 'Salvar Notas'}
                 </Button>
               </div>
             )}
           </div>
         </TabsContent>
 
-        {/* Tab: Configurações */}
         <TabsContent value="settings">
           <div className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl space-y-6">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              Configurações da Campanha
-            </h2>
-
+            <h2 className="text-2xl font-bold text-white mb-4">Configurações da Campanha</h2>
             {isOwner ? (
               <>
-                {/* Visibilidade */}
                 <div className="p-6 bg-slate-950/50 border border-slate-700 rounded-lg">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -380,43 +309,35 @@ export default function CampaignView() {
                         </h3>
                       </div>
                       <p className="text-slate-400 text-sm">
-                        {campaign.is_public 
+                        {campaign.is_public
                           ? 'Esta campanha está visível na biblioteca pública e pode ser clonada por outros usuários.'
-                          : 'Esta campanha é privada e apenas você pode vê-la.'
-                        }
+                          : 'Esta campanha é privada e apenas você pode vê-la.'}
                       </p>
                     </div>
                     <Button
                       onClick={() => togglePublicMutation.mutate()}
-                      disabled={togglePublicMutation.isLoading}
+                      disabled={togglePublicMutation.isPending}
                       variant="outline"
-                      className={campaign.is_public 
+                      className={campaign.is_public
                         ? 'border-red-900/50 text-red-400 hover:bg-red-900/20'
-                        : 'border-green-900/50 text-green-400 hover:bg-green-900/20'
-                      }
+                        : 'border-green-900/50 text-green-400 hover:bg-green-900/20'}
                     >
-                      {togglePublicMutation.isLoading ? (
+                      {togglePublicMutation.isPending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          {campaign.is_public ? 'Tornar Privada' : 'Tornar Pública'}
-                        </>
-                      )}
+                      ) : campaign.is_public ? 'Tornar Privada' : 'Tornar Pública'}
                     </Button>
                   </div>
                 </div>
-
-                {/* Estatísticas */}
                 {campaign.is_public && campaign.clone_count > 0 && (
                   <div className="p-6 bg-purple-900/10 border border-purple-500/20 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <Share2 className="w-5 h-5 text-purple-400" />
-                      <h3 className="text-lg font-semibold text-white">
-                        Estatísticas
-                      </h3>
+                      <h3 className="text-lg font-semibold text-white">Estatísticas</h3>
                     </div>
                     <p className="text-slate-300">
-                      Esta campanha foi clonada <span className="text-purple-400 font-bold">{campaign.clone_count}</span> {campaign.clone_count === 1 ? 'vez' : 'vezes'}
+                      Esta campanha foi clonada{' '}
+                      <span className="text-purple-400 font-bold">{campaign.clone_count}</span>{' '}
+                      {campaign.clone_count === 1 ? 'vez' : 'vezes'}
                     </p>
                   </div>
                 )}
