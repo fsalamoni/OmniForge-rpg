@@ -1,6 +1,5 @@
 /**
- * Universal AI client - supports any OpenAI-compatible API
- * (OpenRouter, OpenAI, Gemini OpenAI-compat, Together AI, etc.)
+ * Universal AI client - supports OpenAI-compatible APIs and native Gemini API
  */
 
 export const AI_PRESETS = {
@@ -8,27 +7,53 @@ export const AI_PRESETS = {
     label: 'OpenRouter (todos os modelos)',
     baseUrl: 'https://openrouter.ai/api/v1',
     modelPlaceholder: 'openai/gpt-4o',
-    docsUrl: 'https://openrouter.ai/keys'
+    docsUrl: 'https://openrouter.ai/keys',
+    models: null // free text — too many models
   },
   openai: {
     label: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
     modelPlaceholder: 'gpt-4o',
-    docsUrl: 'https://platform.openai.com/api-keys'
+    docsUrl: 'https://platform.openai.com/api-keys',
+    models: [
+      { value: 'gpt-4o',       label: 'GPT-4o (recomendado)' },
+      { value: 'gpt-4o-mini',  label: 'GPT-4o Mini (rápido e barato)' },
+      { value: 'gpt-4-turbo',  label: 'GPT-4 Turbo' },
+      { value: 'o3-mini',      label: 'o3-mini (raciocínio)' },
+      { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (legado)' }
+    ]
   },
   gemini: {
     label: 'Google Gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     modelPlaceholder: 'gemini-2.0-flash',
-    docsUrl: 'https://aistudio.google.com/app/apikey'
+    docsUrl: 'https://aistudio.google.com/app/apikey',
+    models: [
+      { value: 'gemini-2.5-pro-preview-03-25', label: 'Gemini 2.5 Pro Preview (mais inteligente)' },
+      { value: 'gemini-2.0-flash',             label: 'Gemini 2.0 Flash (recomendado)' },
+      { value: 'gemini-2.0-flash-lite',        label: 'Gemini 2.0 Flash Lite (mais rápido)' },
+      { value: 'gemini-1.5-pro',               label: 'Gemini 1.5 Pro' },
+      { value: 'gemini-1.5-flash',             label: 'Gemini 1.5 Flash' }
+    ]
   },
   custom: {
     label: 'Custom (URL própria)',
     baseUrl: '',
     modelPlaceholder: 'model-name',
-    docsUrl: null
+    docsUrl: null,
+    models: null // free text
   }
 };
+
+/** Returns true when the baseUrl points to Gemini's native REST API */
+function isGeminiUrl(baseUrl) {
+  return typeof baseUrl === 'string' && baseUrl.includes('generativelanguage.googleapis.com');
+}
+
+/** Normalize any Gemini baseUrl variant to the v1beta root (strips /openai suffix if present) */
+function geminiApiBase(baseUrl) {
+  return baseUrl.replace(/\/openai\/?$/, '').replace(/\/$/, '');
+}
 
 /**
  * @param {object} params
@@ -48,13 +73,55 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
     );
   }
 
-  // Default system prompt falls back based on whether a schema is expected
   const resolvedSystemPrompt = systemPrompt ?? (
     responseSchema
       ? 'Você é um assistente especialista em RPG. Responda SEMPRE em JSON válido conforme o schema solicitado. Não adicione texto fora do JSON.'
       : 'Você é um assistente especialista em RPG.'
   );
 
+  // ── Native Gemini API (avoids CORS issues with the OpenAI-compatible endpoint) ──
+  if (isGeminiUrl(baseUrl)) {
+    const apiBase = geminiApiBase(baseUrl);
+    const url = `${apiBase}/models/${model}:generateContent?key=${apiKey}`;
+
+    const geminiBody = {
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      systemInstruction: { parts: [{ text: resolvedSystemPrompt }] },
+      generationConfig: {
+        temperature: temperature ?? 0.8,
+        ...(responseSchema ? { responseMimeType: 'application/json' } : {})
+      }
+    };
+
+    const geminiResponse = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiBody)
+    });
+
+    if (!geminiResponse.ok) {
+      const err = await geminiResponse.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `Erro na API Gemini: ${geminiResponse.status} ${geminiResponse.statusText}`);
+    }
+
+    const geminiData = await geminiResponse.json();
+    const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!content) throw new Error('Resposta vazia da API Gemini');
+
+    if (responseSchema) {
+      try {
+        return JSON.parse(content);
+      } catch {
+        const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (match) return JSON.parse(match[1]);
+        throw new Error('A IA não retornou JSON válido. Tente novamente.');
+      }
+    }
+    return content;
+  }
+
+  // ── OpenAI-compatible API (OpenRouter, OpenAI, custom) ──────────────────────
   const messages = [
     { role: 'system', content: resolvedSystemPrompt },
     { role: 'user', content: prompt }
@@ -99,7 +166,6 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
     try {
       return JSON.parse(content);
     } catch {
-      // Try to extract JSON from markdown code blocks
       const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (match) return JSON.parse(match[1]);
       throw new Error('A IA não retornou JSON válido. Tente novamente.');
