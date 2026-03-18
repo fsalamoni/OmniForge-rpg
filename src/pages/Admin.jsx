@@ -199,9 +199,9 @@ function TabCampaigns() {
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return (
-      c.title?.toLowerCase().includes(s) ||
-      c.system_rpg?.toLowerCase().includes(s) ||
-      c.setting?.toLowerCase().includes(s)
+      c.title?.toLowerCase()?.includes(s) ||
+      c.system_rpg?.toLowerCase()?.includes(s) ||
+      c.setting?.toLowerCase()?.includes(s)
     );
   });
 

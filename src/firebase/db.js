@@ -22,6 +22,15 @@ const toData = (snap) => snap.exists() ? { id: snap.id, ...snap.data() } : null;
 const toDocs = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 const now = () => serverTimestamp();
 
+// Safe Firestore Timestamp → milliseconds (handles Timestamp, Date, or null)
+const tsMs = (t) => {
+  if (!t) return 0;
+  if (typeof t.toMillis === 'function') return t.toMillis();
+  if (typeof t.seconds === 'number') return t.seconds * 1000;
+  if (t instanceof Date) return t.getTime();
+  return 0;
+};
+
 // ─── User Profile ─────────────────────────────────────────────────────────────
 
 export const UserProfile = {
@@ -51,11 +60,10 @@ export const Campaign = {
   async list(userId) {
     const q = query(
       collection(db, 'campaigns'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
     );
     const snap = await getDocs(q);
-    return toDocs(snap);
+    return toDocs(snap).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
   },
 
   async get(id) {
@@ -88,11 +96,10 @@ export const Campaign = {
     const q = query(
       collection(db, 'campaigns'),
       where('is_public', '==', true),
-      where('is_completed', '==', true),
-      orderBy('createdAt', 'desc')
+      where('is_completed', '==', true)
     );
     const snap = await getDocs(q);
-    let results = toDocs(snap);
+    let results = toDocs(snap).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 
     if (filters.system_rpg) {
       results = results.filter((c) => c.system_rpg === filters.system_rpg);
@@ -104,8 +111,8 @@ export const Campaign = {
       const s = filters.search.toLowerCase();
       results = results.filter(
         (c) =>
-          c.title?.toLowerCase().includes(s) ||
-          c.setting?.toLowerCase().includes(s)
+          c.title?.toLowerCase()?.includes(s) ||
+          c.setting?.toLowerCase()?.includes(s)
       );
     }
     return results;
@@ -122,11 +129,10 @@ export const CampaignStep = {
   async listByCampaign(campaignId) {
     const q = query(
       collection(db, 'campaignSteps'),
-      where('campaignId', '==', campaignId),
-      orderBy('order_index', 'asc')
+      where('campaignId', '==', campaignId)
     );
     const snap = await getDocs(q);
-    return toDocs(snap);
+    return toDocs(snap).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   },
 
   async upsert(campaignId, questionKey, data) {
