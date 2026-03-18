@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import NpcCard from '../components/campaign-view/NpcCard';
 import GenerateNpcDialog from '../components/campaign-view/GenerateNpcDialog';
+import GenerateEncounterDialog from '../components/campaign-view/GenerateEncounterDialog';
 import EditableSection from '../components/campaign-view/EditableSection';
 import EncounterCard from '../components/campaign-view/EncounterCard';
 import PlotHooksList from '../components/campaign-view/PlotHooksList';
@@ -197,19 +198,34 @@ export default function CampaignView() {
           {content.plot_hooks?.length > 0 && (
             <PlotHooksList hooks={content.plot_hooks} onSave={handleUpdateHooks} isOwner={isOwner} />
           )}
-          {content.encounters?.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">Encontros Balanceados</h2>
-                <span className="text-slate-400">
-                  {content.encounters.length} {content.encounters.length === 1 ? 'encontro' : 'encontros'}
-                </span>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white">Encontros Balanceados</h2>
+              <div className="flex items-center gap-3">
+                {content.encounters?.length > 0 && (
+                  <span className="text-slate-400">
+                    {content.encounters.length} {content.encounters.length === 1 ? 'encontro' : 'encontros'}
+                  </span>
+                )}
+                {isOwner && (
+                  <GenerateEncounterDialog
+                    campaignId={campaignId}
+                    campaign={campaign}
+                    onEncounterCreated={() => queryClient.invalidateQueries(['campaign', campaignId])}
+                  />
+                )}
               </div>
-              {content.encounters.map((encounter, index) => (
-                <EncounterCard key={index} encounter={encounter} index={index} />
-              ))}
             </div>
-          )}
+            {content.encounters?.length > 0 ? (
+              content.encounters.map((encounter, index) => (
+                <EncounterCard key={index} encounter={encounter} index={index} />
+              ))
+            ) : (
+              <div className="text-center py-8 bg-slate-900/30 border border-slate-800 rounded-2xl">
+                <p className="text-slate-400">Nenhum encontro gerado ainda</p>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="npcs">

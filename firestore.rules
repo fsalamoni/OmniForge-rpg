@@ -60,6 +60,13 @@ service cloud.firestore {
       );
     }
 
+    // ─── Agentes de IA (Overrides de Prompts) ─────────────────────────────────
+    // Apenas admin pode ler/escrever configurações de agentes de IA.
+    match /aiAgents/{agentId} {
+      allow read:  if request.auth != null && isAdmin();
+      allow write: if request.auth != null && isAdmin();
+    }
+
     // ─── Likes de Campanhas ───────────────────────────────────────────────────
     // Qualquer usuário autenticado pode curtir/descurtir campanhas.
     match /campaignLikes/{docId} {
