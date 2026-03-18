@@ -294,7 +294,7 @@ export default function Settings() {
                   {system.core_attributes?.length > 0 && (
                     <div>
                       <span className="text-slate-500">Atributos: </span>
-                      <span className="text-slate-300">{system.core_attributes.join(', ')}</span>
+                      <span className="text-slate-300">{(system.core_attributes || []).join(', ')}</span>
                     </div>
                   )}
                   {system.dice_mechanics && (

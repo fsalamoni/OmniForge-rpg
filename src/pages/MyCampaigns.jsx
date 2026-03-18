@@ -38,7 +38,7 @@ export default function MyCampaigns() {
   });
 
   const filteredCampaigns = allCampaigns.filter(campaign => {
-    const matchesSearch = campaign.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = !searchTerm || (campaign.title?.toLowerCase() ?? '').includes(searchTerm.toLowerCase());
     const matchesSystem = filterSystem === 'all' || campaign.system_rpg === filterSystem;
     const matchesSetting = filterSetting === 'all' || campaign.setting === filterSetting;
     const matchesStatus =
