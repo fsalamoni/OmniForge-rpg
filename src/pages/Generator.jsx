@@ -268,8 +268,8 @@ export default function Generator() {
 
       // Monta contexto das respostas anteriores
       const previousAnswers = QUESTIONS_5W2H
-        .filter(q => q.key !== questionKey && answers[q.key]?.trim())
-        .map(q => `${q.title}: ${answers[q.key]}`)
+        .filter(q => q.key !== questionKey && String(answers[q.key] ?? '').trim())
+        .map(q => `${q.title}: ${String(answers[q.key] ?? '')}`)
         .join('\n');
 
       const prompt = buildPrompt(config.promptTemplate, {
@@ -295,8 +295,8 @@ export default function Generator() {
         temperature: config.temperature
       });
 
-      if (result?.answer) {
-        setAnswers(prev => ({ ...prev, [questionKey]: result.answer }));
+      if (result?.answer != null) {
+        setAnswers(prev => ({ ...prev, [questionKey]: String(result.answer) }));
       }
     } catch (err) {
       console.error('Erro ao gerar resposta com IA:', err);
@@ -348,8 +348,8 @@ export default function Generator() {
         // Constrói contexto das respostas anteriores (já geradas pela IA)
         const previousAnswers = QUESTIONS_5W2H
           .slice(0, i)
-          .filter(q => newAnswers[q.key]?.trim())
-          .map(q => `${q.title}: ${newAnswers[q.key]}`)
+          .filter(q => String(newAnswers[q.key] ?? '').trim())
+          .map(q => `${q.title}: ${String(newAnswers[q.key] ?? '')}`)
           .join('\n');
 
         const prompt = buildPrompt(config.promptTemplate, {
@@ -375,8 +375,8 @@ export default function Generator() {
           temperature: config.temperature
         });
 
-        if (result?.answer) {
-          newAnswers[question.key] = result.answer;
+        if (result?.answer != null) {
+          newAnswers[question.key] = String(result.answer);
         }
       }
 
