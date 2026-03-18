@@ -718,8 +718,9 @@ const AGENT_DISPLAY_ORDER = [
   { id: AGENT_IDS.QUESTION_WHO,       icon: '❓', category: '5W2H' },
   { id: AGENT_IDS.QUESTION_HOW,       icon: '❓', category: '5W2H' },
   { id: AGENT_IDS.QUESTION_HOW_MUCH,  icon: '❓', category: '5W2H' },
-  { id: AGENT_IDS.CAMPAIGN_GENERATOR, icon: '⚔️', category: 'Geração' },
-  { id: AGENT_IDS.NPC_GENERATOR,      icon: '👤', category: 'Geração' }
+  { id: AGENT_IDS.CAMPAIGN_GENERATOR,  icon: '⚔️', category: 'Geração' },
+  { id: AGENT_IDS.NPC_GENERATOR,       icon: '👤', category: 'Geração' },
+  { id: AGENT_IDS.ENCOUNTER_GENERATOR, icon: '🗡️', category: 'Geração' }
 ];
 
 function TabAiAgents() {

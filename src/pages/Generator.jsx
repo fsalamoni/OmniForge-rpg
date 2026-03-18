@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import QuestionCard from '../components/generator/QuestionCard';
 import ProgressBar from '../components/generator/ProgressBar';
-import { Wand2, ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
+import { Wand2, ArrowLeft, Sparkles, Loader2, CheckCircle, Circle, Zap } from 'lucide-react';
 
 const QUESTIONS_5W2H = [
   {
@@ -120,6 +120,8 @@ export default function Generator() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [aiFillingKey, setAiFillingKey] = useState(null); // chave da pergunta sendo preenchida por IA
+  const [aiFillingAll, setAiFillingAll] = useState(false);
+  const [aiFillingProgress, setAiFillingProgress] = useState(-1);
   const [availableSystems, setAvailableSystems] = useState(DEFAULT_SYSTEMS);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -301,6 +303,109 @@ export default function Generator() {
       alert(`Erro ao gerar resposta: ${err.message}`);
     } finally {
       setAiFillingKey(null);
+    }
+  };
+
+  // ─── Preencher TODAS as respostas com IA (admin only) ──────────────────────
+  const handleAiFillAll = async () => {
+    if (!userProfile?.aiConfig) {
+      alert('Configure sua chave de IA no Perfil antes de usar o auto-preenchimento.\n\nAcesse: Perfil → Configuração de IA');
+      return;
+    }
+
+    // Garante que a campanha existe antes de começar
+    let campaignIdToUse = activeCampaignId;
+    if (!campaignIdToUse) {
+      try {
+        const newCampaign = await Campaign.create({
+          ...formData,
+          current_step: 1,
+          creativity_level: creativityLevel,
+          is_completed: false,
+          is_public: false,
+          userId: user.uid
+        });
+        campaignIdToUse = newCampaign.id;
+        setActiveCampaignId(newCampaign.id);
+      } catch (err) {
+        alert('Erro ao criar campanha. Tente novamente.');
+        return;
+      }
+    }
+
+    setAiFillingAll(true);
+    setAiFillingProgress(0);
+
+    const newAnswers = {};
+
+    try {
+      for (let i = 0; i < QUESTIONS_5W2H.length; i++) {
+        setAiFillingProgress(i);
+        const question = QUESTIONS_5W2H[i];
+        const agentId = QUESTION_KEY_TO_AGENT[question.key];
+        const config = getAgentConfig(agentId, agentOverrides);
+
+        // Constrói contexto das respostas anteriores (já geradas pela IA)
+        const previousAnswers = QUESTIONS_5W2H
+          .slice(0, i)
+          .filter(q => newAnswers[q.key]?.trim())
+          .map(q => `${q.title}: ${newAnswers[q.key]}`)
+          .join('\n');
+
+        const prompt = buildPrompt(config.promptTemplate, {
+          system: formData.system_rpg,
+          setting: formData.setting,
+          duration: formData.duration_type,
+          players: formData.players_count,
+          title: formData.title,
+          question_title: question.title,
+          question_description: question.description,
+          previous_answers: previousAnswers || 'Nenhuma resposta anterior ainda.'
+        });
+
+        const result = await invokeLLM({
+          prompt,
+          responseSchema: {
+            type: 'object',
+            properties: { answer: { type: 'string' } },
+            required: ['answer']
+          },
+          userAIConfig: userProfile.aiConfig,
+          systemPrompt: config.systemPrompt,
+          temperature: config.temperature
+        });
+
+        if (result?.answer) {
+          newAnswers[question.key] = result.answer;
+        }
+      }
+
+      // Atualiza todas as respostas no estado local
+      setAnswers(newAnswers);
+
+      // Salva todas as etapas no Firestore
+      for (let i = 0; i < QUESTIONS_5W2H.length; i++) {
+        const question = QUESTIONS_5W2H[i];
+        if (newAnswers[question.key]) {
+          await CampaignStep.upsert(campaignIdToUse, question.key, {
+            question_text: question.title,
+            user_answer: newAnswers[question.key],
+            order_index: i + 1
+          });
+        }
+      }
+
+      // Pula direto para a etapa 8 (nível de criatividade)
+      await Campaign.update(campaignIdToUse, { current_step: 8 });
+      setCurrentStep(8);
+    } catch (err) {
+      console.error('Erro ao preencher todas as respostas com IA:', err);
+      // Mantém as respostas parciais
+      setAnswers(prev => ({ ...prev, ...newAnswers }));
+      alert(`Erro ao preencher respostas: ${err.message}\n\nAlgumas respostas podem ter sido preenchidas parcialmente.`);
+    } finally {
+      setAiFillingAll(false);
+      setAiFillingProgress(-1);
     }
   };
 
@@ -544,6 +649,58 @@ export default function Generator() {
   // ─── Etapas 1–7: Perguntas 5W2H ──────────────────────────────────────────────
   if (currentStep >= 1 && currentStep <= 7) {
     const question = QUESTIONS_5W2H[currentStep - 1];
+
+    // Durante o preenchimento automático total, mostra progresso
+    if (aiFillingAll) {
+      return (
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2">{formData.title}</h1>
+            <p className="text-slate-400">{formData.system_rpg} • {formData.setting}</p>
+          </div>
+
+          <div className="p-8 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl">
+            <div className="text-center mb-8">
+              <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white">Preenchendo todas as respostas com IA...</h2>
+              <p className="text-slate-400 mt-2">
+                Pergunta {aiFillingProgress + 1} de {QUESTIONS_5W2H.length}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {QUESTIONS_5W2H.map((q, i) => (
+                <div
+                  key={q.key}
+                  className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                    i < aiFillingProgress
+                      ? 'bg-green-900/20 border border-green-500/20'
+                      : i === aiFillingProgress
+                        ? 'bg-purple-900/20 border border-purple-500/30'
+                        : 'bg-slate-800/30 border border-transparent'
+                  }`}
+                >
+                  {i < aiFillingProgress ? (
+                    <CheckCircle className="w-5 h-5 text-green-400 shrink-0" />
+                  ) : i === aiFillingProgress ? (
+                    <Loader2 className="w-5 h-5 text-purple-400 animate-spin shrink-0" />
+                  ) : (
+                    <Circle className="w-5 h-5 text-slate-600 shrink-0" />
+                  )}
+                  <span className={`text-sm font-medium ${
+                    i < aiFillingProgress ? 'text-green-300' :
+                    i === aiFillingProgress ? 'text-purple-300' : 'text-slate-500'
+                  }`}>
+                    {q.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-4xl mx-auto">
         <button
@@ -558,13 +715,34 @@ export default function Generator() {
           <p className="text-slate-400">{formData.system_rpg} • {formData.setting}</p>
         </div>
         <ProgressBar currentStep={currentStep - 1} totalSteps={7} />
+
+        {/* Botão "Preencher Tudo com IA" — admin only */}
+        {isAdmin && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-amber-900/20 to-purple-900/20 border border-amber-500/20 rounded-xl flex items-center justify-between gap-4">
+            <div>
+              <p className="text-amber-200 font-semibold text-sm">Modo Admin</p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                Preenche automaticamente todas as 7 perguntas do 5W2H com IA e avança para a geração final.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={handleAiFillAll}
+              disabled={aiFillingAll || loading}
+              className="shrink-0 flex items-center gap-2 bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-semibold shadow-lg"
+            >
+              <Zap className="w-4 h-4" />
+              Preencher Tudo com IA
+            </Button>
+          </div>
+        )}
+
         <QuestionCard
           question={question}
           answer={answers[question.key] || ''}
           onChange={(value) => setAnswers({ ...answers, [question.key]: value })}
           onNext={handleAnswerSubmit}
           isLoading={loading}
-          // Botão de IA disponível apenas para admin
           onAiFill={isAdmin ? () => handleAiFillQuestion(question.key) : undefined}
           isAiFilling={aiFillingKey === question.key}
         />

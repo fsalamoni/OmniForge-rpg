@@ -19,7 +19,8 @@ export const AGENT_IDS = {
   QUESTION_HOW:         'question-how',
   QUESTION_HOW_MUCH:    'question-how-much',
   CAMPAIGN_GENERATOR:   'campaign-generator',
-  NPC_GENERATOR:        'npc-generator'
+  NPC_GENERATOR:        'npc-generator',
+  ENCOUNTER_GENERATOR:  'encounter-generator'
 };
 
 // Mapeia chave da pergunta → ID do agente
@@ -400,6 +401,50 @@ Responda em JSON:
       { key: 'instructions', description: 'Instruções específicas do usuário (opcional)' }
     ],
     temperature: 0.9
+  },
+
+  // ─ Gerador de Encontro Individual ─────────────────────────────────────────
+  [AGENT_IDS.ENCOUNTER_GENERATOR]: {
+    name: 'Gerador de Encontro',
+    description: 'Gera um encontro/desafio completo e balanceado para uma campanha.',
+    systemPrompt: `Você é um mestre de RPG especialista em design de encontros balanceados, criativos e narrativamente interessantes. Você domina as mecânicas de combate, desafios sociais e puzzles de múltiplos sistemas de RPG de mesa. Responda SEMPRE em JSON válido.`,
+    promptTemplate: `Crie um encontro completo para esta campanha de RPG:
+
+SISTEMA: {{system_rpg}}
+AMBIENTAÇÃO: {{setting}}
+JOGADORES: {{players_count}}
+CONTEXTO DA CAMPANHA: {{campaign_summary}}
+{{#instructions}}
+INSTRUÇÕES ESPECÍFICAS: {{instructions}}
+{{/instructions}}
+TIPO DE ENCONTRO: {{encounter_type}}
+DIFICULDADE DESEJADA: {{difficulty}}
+
+Crie um encontro que:
+- Seja balanceado para {{players_count}} jogadores no sistema {{system_rpg}}
+- Tenha contexto narrativo que se encaixe na campanha
+- Inclua criaturas/inimigos com quantidades adequadas
+- Tenha táticas e comportamentos específicos para os inimigos
+- Traga elementos que surpreendam os jogadores
+
+Responda em JSON:
+{
+  "name": "Nome do encontro",
+  "difficulty": "Fácil|Médio|Difícil|Mortal",
+  "description": "Descrição narrativa detalhada do encontro (3-5 frases)",
+  "creatures": [{"name": "Nome da criatura", "quantity": 2}],
+  "tactics": "Táticas e comportamento dos inimigos durante o encontro"
+}`,
+    variables: [
+      { key: 'system_rpg', description: 'Sistema de RPG' },
+      { key: 'setting', description: 'Ambientação' },
+      { key: 'players_count', description: 'Número de jogadores' },
+      { key: 'campaign_summary', description: 'Resumo da campanha para contexto' },
+      { key: 'instructions', description: 'Instruções específicas do usuário (opcional)' },
+      { key: 'encounter_type', description: 'Tipo de encontro (Combate, Social, Exploração, Puzzle)' },
+      { key: 'difficulty', description: 'Dificuldade desejada' }
+    ],
+    temperature: 0.85
   }
 };
 
