@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
 import { AI_PRESETS, invokeLLM } from '@/lib/aiClient';
@@ -38,6 +38,19 @@ export default function Profile() {
   const [saveSuccess, setSaveSuccess] = useState('');
   const [testStatus, setTestStatus] = useState(null); // null | 'testing' | 'ok' | 'error'
   const [testError, setTestError] = useState('');
+
+  // Sync local state when userProfile loads asynchronously from Firestore
+  useEffect(() => {
+    if (!userProfile) return;
+    setFormData({ full_name: userProfile.full_name || user?.displayName || '' });
+    if (userProfile.aiConfig) {
+      setAiConfig({
+        baseUrl: userProfile.aiConfig.baseUrl || AI_PRESETS.openrouter.baseUrl,
+        apiKey: userProfile.aiConfig.apiKey || '',
+        model: userProfile.aiConfig.model || ''
+      });
+    }
+  }, [userProfile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data) => {

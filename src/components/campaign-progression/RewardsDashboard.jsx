@@ -25,6 +25,7 @@ export default function RewardsDashboard({ campaignId, isOwner }) {
   }, [campaignId]);
 
   const handleDelete = async (rewardId) => {
+    if (!confirm('Deletar esta recompensa?')) return;
     try {
       await CampaignReward.delete(rewardId);
       setRewards(prev => prev.filter(r => r.id !== rewardId));

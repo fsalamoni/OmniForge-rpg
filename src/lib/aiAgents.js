@@ -730,7 +730,13 @@ Responda em JSON:
         "name": "Nome do Arco",
         "description": "descrição breve",
         "scenes": [
-          { "name": "Nome da Cena", "process": "processo/ação principal" }
+          {
+            "name": "Nome da Cena",
+            "challenge_type": "Combate | Social | Exploração | Puzzle | Híbrido",
+            "input": "o que os jogadores precisam ter/saber para iniciar esta cena",
+            "process": "processo/ação principal que ocorre na cena",
+            "deliverable": "resultado concreto que os jogadores obtêm ao completar"
+          }
         ]
       }
     ]
@@ -756,17 +762,11 @@ Responda em JSON:
   ],
   "decision_gateways": [
     {
-      "trigger_condition": "quando/se os jogadores...",
-      "description": "descrição do gateway",
-      "yes_outcome": {
-        "description": "o que acontece se escolherem sim",
-        "consequence": "consequência narrativa"
-      },
-      "no_outcome": {
-        "description": "o que acontece se escolherem não",
-        "consequence": "consequência narrativa"
-      },
-      "arcs_affected": ["Arco 1", "Arco 2"]
+      "trigger": "situação que ativa este ponto de decisão (ex: durante a infiltração no palácio...)",
+      "condition": "a condição que os jogadores enfrentam (Se os jogadores decidirem...)",
+      "consequence_a": "o que acontece se a condição for verdadeira (caminho A)",
+      "consequence_b": "o que acontece se a condição for falsa (caminho B)",
+      "impact": "como esta decisão afeta os arcos narrativos e a WBS"
     }
   ]
 }`,
