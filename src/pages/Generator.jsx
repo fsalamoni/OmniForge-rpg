@@ -503,8 +503,17 @@ export default function Generator() {
         encounters: Array.isArray(result.encounters) ? result.encounters : []
       };
 
+      const answersForContext = steps
+        .sort((a, b) => a.order_index - b.order_index)
+        .reduce((acc, s) => {
+          acc[s.question_key] = s.user_answer;
+          return acc;
+        }, {});
+
       await Campaign.update(activeCampaignId, {
         content_json: normalizedResult,
+        answers_5w2h: answersText,
+        answers_5w2h_map: answersForContext,
         is_completed: true,
         current_step: 8
       });

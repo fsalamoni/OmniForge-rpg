@@ -11,16 +11,23 @@
 // ─── IDs dos Agentes ──────────────────────────────────────────────────────────
 
 export const AGENT_IDS = {
-  QUESTION_WHAT:        'question-what',
-  QUESTION_WHY:         'question-why',
-  QUESTION_WHERE:       'question-where',
-  QUESTION_WHEN:        'question-when',
-  QUESTION_WHO:         'question-who',
-  QUESTION_HOW:         'question-how',
-  QUESTION_HOW_MUCH:    'question-how-much',
-  CAMPAIGN_GENERATOR:   'campaign-generator',
-  NPC_GENERATOR:        'npc-generator',
-  ENCOUNTER_GENERATOR:  'encounter-generator'
+  QUESTION_WHAT:          'question-what',
+  QUESTION_WHY:           'question-why',
+  QUESTION_WHERE:         'question-where',
+  QUESTION_WHEN:          'question-when',
+  QUESTION_WHO:           'question-who',
+  QUESTION_HOW:           'question-how',
+  QUESTION_HOW_MUCH:      'question-how-much',
+  CAMPAIGN_GENERATOR:     'campaign-generator',
+  NPC_GENERATOR:          'npc-generator',
+  ENCOUNTER_GENERATOR:    'encounter-generator',
+  ARC_GENERATOR:          'arc-generator',
+  HOOKS_GENERATOR:        'hooks-generator',
+  NPC_EXTRACTOR:          'npc-extractor',
+  NPC_INTERACTION:        'npc-interaction',
+  CONSEQUENCE_GENERATOR:  'consequence-generator',
+  AI_EXPANDER:            'ai-expander',
+  MANAGEMENT_GENERATOR:   'management-generator'
 };
 
 // Mapeia chave da pergunta → ID do agente
@@ -401,6 +408,377 @@ Responda em JSON:
       { key: 'instructions', description: 'Instruções específicas do usuário (opcional)' }
     ],
     temperature: 0.9
+  },
+
+  // ─ Gerador de Arco Narrativo ──────────────────────────────────────────────
+  [AGENT_IDS.ARC_GENERATOR]: {
+    name: 'Gerador de Arco Narrativo',
+    description: 'Gera um arco narrativo completo com atos e cenas detalhadas para uma campanha.',
+    systemPrompt: `Você é um mestre de RPG especialista em estrutura narrativa épica. Crie arcos de campanha com atos bem definidos e cenas imersivas, adaptados ao sistema e ambientação fornecidos. Responda SEMPRE em JSON válido.`,
+    promptTemplate: `TAREFA: Criar arco de RPG completo com {{num_acts}} atos, cada ato com {{scenes_per_act}} cenas.
+
+INFORMAÇÕES DO ARCO:
+Nome: {{arc_name}}
+Tipo de Missão: {{mission_type}}
+Sistema: {{system_rpg}}
+Ambientação: {{setting}}
+
+CONTEXTO DA CAMPANHA:
+{{description}}
+
+CONTEXTO 5W2H:
+{{answers_5w2h}}
+
+{{#custom_instructions}}
+INSTRUÇÕES ESPECÍFICAS:
+{{custom_instructions}}
+{{/custom_instructions}}
+
+REGRA ABSOLUTA: Gere EXATAMENTE {{num_acts}} atos × {{scenes_per_act}} cenas = {{num_acts}} atos no total.
+
+Para cada CENA inclua:
+- scene_name: nome evocativo
+- scene_type: "Combate" | "Social" | "Exploração" | "Investigação" | "Climax"
+- trigger: o que ativa esta cena
+- read_aloud: texto para leitura em voz alta pelo mestre (2-3 frases atmosféricas)
+- hidden_reality: o que está realmente acontecendo por trás das aparências
+- secrets_and_clues: pistas escondidas que os jogadores podem encontrar
+- objective: objetivo dos jogadores nesta cena
+- opposition_passive: obstáculos passivos (ambientais, sociais)
+- opposition_active: oponentes ativos e suas táticas
+- suggested_checks: testes mecânicos sugeridos (ex: Percepção DC 15)
+- rewards: recompensas possíveis
+- outcomes: possíveis desfechos (sucesso total, parcial, falha)
+
+Responda em JSON com estrutura:
+{
+  "name": "{{arc_name}}",
+  "arc_objective": "objetivo principal do arco",
+  "world_change": "como o mundo muda ao completar este arco",
+  "arc_villain": "antagonista principal deste arco",
+  "description": "descrição narrativa do arco (3-4 frases)",
+  "acts": [
+    {
+      "title": "Título do Ato",
+      "act_function": "Inciting Incident | Rising Action | Climax | Resolution",
+      "description": "descrição do ato",
+      "objectives": "objetivos dos jogadores neste ato",
+      "twist": "reviravolta ou surpresa",
+      "npcs_involved": ["NPC 1", "NPC 2"],
+      "completed": false,
+      "scenes": [
+        {
+          "scene_name": "Nome da Cena",
+          "scene_type": "Combate",
+          "trigger": "o que ativa a cena",
+          "read_aloud": "texto atmosférico para leitura",
+          "hidden_reality": "verdade oculta",
+          "secrets_and_clues": "pistas disponíveis",
+          "objective": "objetivo dos jogadores",
+          "opposition_passive": "obstáculos passivos",
+          "opposition_active": "oponentes e táticas",
+          "suggested_checks": "testes sugeridos",
+          "rewards": "recompensas",
+          "outcomes": "desfechos possíveis",
+          "completed": false
+        }
+      ]
+    }
+  ]
+}`,
+    variables: [
+      { key: 'arc_name', description: 'Nome do arco narrativo' },
+      { key: 'mission_type', description: 'Tipo de missão (Investigação, Exploração, etc.)' },
+      { key: 'num_acts', description: 'Número de atos' },
+      { key: 'scenes_per_act', description: 'Número de cenas por ato' },
+      { key: 'system_rpg', description: 'Sistema de RPG' },
+      { key: 'setting', description: 'Ambientação' },
+      { key: 'description', description: 'Descrição/resumo da campanha' },
+      { key: 'answers_5w2h', description: 'Respostas 5W2H para contexto' },
+      { key: 'custom_instructions', description: 'Instruções personalizadas (opcional)' }
+    ],
+    temperature: 0.85
+  },
+
+  // ─ Gerador de Ganchos de Plot ─────────────────────────────────────────────
+  [AGENT_IDS.HOOKS_GENERATOR]: {
+    name: 'Gerador de Ganchos de Plot',
+    description: 'Gera ganchos de aventura (plot hooks) originais e variados para uma campanha.',
+    systemPrompt: `Você é um mestre de RPG especialista em narrativa e hooks de engajamento. Crie ganchos de plot únicos, intrigantes e contextualizados que conectem os jogadores à campanha de forma imersiva. Responda SEMPRE em JSON válido.`,
+    promptTemplate: `Você é um Mestre de RPG especialista em {{system_rpg}} na ambientação {{setting}}.
+
+CONTEXTO DA CAMPANHA:
+{{description}}
+
+RESPOSTAS 5W2H:
+{{answers_5w2h}}
+
+TAREFA: Gere EXATAMENTE {{quantity}} ganchos de plot (plot hooks) originais, intrigantes e variados.
+
+{{#custom_instructions}}
+INSTRUÇÕES ESPECÍFICAS:
+{{custom_instructions}}
+{{/custom_instructions}}
+
+REQUISITOS:
+- Cada gancho deve ser único e criar suspense imediato
+- Variar entre: mistério, conflito, descoberta, perigo, oportunidade
+- Adaptar ao sistema {{system_rpg}} e ambientação {{setting}}
+- Conectar com o contexto da campanha
+- Cada gancho em 2-3 frases descritivas e evocativas
+
+Responda em JSON:
+{
+  "hooks": ["gancho 1", "gancho 2", ...]
+}`,
+    variables: [
+      { key: 'quantity', description: 'Quantidade de ganchos a gerar' },
+      { key: 'system_rpg', description: 'Sistema de RPG' },
+      { key: 'setting', description: 'Ambientação' },
+      { key: 'description', description: 'Descrição/resumo da campanha' },
+      { key: 'answers_5w2h', description: 'Respostas 5W2H para contexto' },
+      { key: 'custom_instructions', description: 'Instruções personalizadas (opcional)' }
+    ],
+    temperature: 0.9
+  },
+
+  // ─ Extrator de NPCs do Conteúdo ───────────────────────────────────────────
+  [AGENT_IDS.NPC_EXTRACTOR]: {
+    name: 'Extrator de NPCs do Conteúdo',
+    description: 'Analisa o conteúdo da campanha e extrai nomes de personagens para criação de NPCs.',
+    systemPrompt: `Você é um analista de narrativas RPG. Extraia nomes de personagens mencionados explicitamente em descrições de campanhas. Responda SEMPRE em JSON válido.`,
+    promptTemplate: `Analise a descrição desta campanha de RPG e extraia os nomes de TODOS os personagens mencionados explicitamente (NPCs, vilões, aliados, figuras históricas, etc.).
+
+CONTEÚDO DA CAMPANHA:
+{{content_text}}
+
+Extraia apenas nomes PRÓPRIOS de personagens. Não inclua tipos genéricos como "o rei" sem nome. Agrupe por localização quando possível.
+
+Responda em JSON:
+{
+  "locations": [
+    {
+      "location": "Nome da localização",
+      "npcs": ["Nome 1", "Nome 2"]
+    }
+  ]
+}`,
+    variables: [
+      { key: 'content_text', description: 'Texto da campanha (descrição + ganchos + arcos)' }
+    ],
+    temperature: 0.3
+  },
+
+  // ─ Interação com NPC (Roleplay) ───────────────────────────────────────────
+  [AGENT_IDS.NPC_INTERACTION]: {
+    name: 'Interação com NPC (Roleplay)',
+    description: 'Gera respostas em roleplay de NPCs para interações dos jogadores.',
+    systemPrompt: `Você é um ator experiente em roleplay de RPG. Incorpore completamente a personalidade, motivações e conhecimentos do NPC especificado. Mantenha consistência com o perfil do personagem e o contexto da campanha. Nunca quebre o personagem.`,
+    promptTemplate: `Você é {{npc_name}}, {{npc_role}}.
+
+PERFIL COMPLETO:
+{{npc_profile}}
+
+NÍVEL DE INTERESSE/CONFIANÇA COM OS JOGADORES: {{interest}}/10
+
+HISTÓRICO RECENTE DA SESSÃO:
+{{recent_history}}
+
+HISTÓRICO DE CONVERSA:
+{{conversation_history}}
+
+MENSAGEM DO JOGADOR: "{{player_message}}"
+
+Responda COMO {{npc_name}}, em primeira pessoa, com:
+1. Resposta imediata (o que {{npc_name}} diz agora)
+2. [Subtexto do Mestre]: o que {{npc_name}} está realmente pensando/sentindo
+3. [Ação]: o que {{npc_name}} faz fisicamente enquanto fala
+
+Seja consistente com a personalidade, use vocabulário adequado ao personagem. Adapte o nível de confiança ao valor de interesse fornecido.`,
+    variables: [
+      { key: 'npc_name', description: 'Nome do NPC' },
+      { key: 'npc_role', description: 'Papel/função do NPC' },
+      { key: 'npc_profile', description: 'Perfil completo do NPC (descrição, motivação, shadow file)' },
+      { key: 'interest', description: 'Nível de interesse/confiança com jogadores (-10 a +10)' },
+      { key: 'conversation_history', description: 'Histórico de mensagens da conversa atual' },
+      { key: 'player_message', description: 'Mensagem atual do jogador' },
+      { key: 'recent_history', description: 'Eventos recentes da sessão' }
+    ],
+    temperature: 0.9
+  },
+
+  // ─ Gerador de Consequências de Decisões ───────────────────────────────────
+  [AGENT_IDS.CONSEQUENCE_GENERATOR]: {
+    name: 'Gerador de Consequências de Decisões',
+    description: 'Gera consequências narrativas e mecânicas para decisões tomadas pelos jogadores.',
+    systemPrompt: `Você é o Arquiteto de Consequências. Analise eventos de campanha e gere impactos realistas, interconectados e dramaticamente interessantes. Considere stakeholders, arcos narrativos e WBS ao gerar consequências. Responda SEMPRE em JSON válido.`,
+    promptTemplate: `CONTEXTO DA CAMPANHA:
+Sistema: {{system_rpg}}
+Ambientação: {{setting}}
+Objetivo Principal: {{core_objective}}
+
+STAKEHOLDERS ATIVOS:
+{{stakeholders_summary}}
+
+HISTÓRICO RECENTE:
+{{recent_history}}
+
+EVENTO ATUAL:
+Tipo: {{event_type}}
+Descrição: {{description}}
+Escolha dos Jogadores: {{player_choice}}
+
+TAREFA: Gere consequências lógicas e integradas:
+1. Consequência Imediata (o que acontece agora)
+2. Impacto de Longo Prazo (sementes narrativas futuras)
+3. Mudanças em Stakeholders (quem é afetado e como)
+4. Impacto na WBS (qual arco/cena é afetado)
+5. Novos Eventos Gerados (2-3 ganchos narrativos resultantes)
+
+Responda em JSON:
+{
+  "immediate": "consequência imediata detalhada",
+  "long_term": "impacto de longo prazo na narrativa",
+  "stakeholder_changes": [
+    {
+      "stakeholder_name": "Nome do Stakeholder",
+      "interest_change": 2,
+      "reason": "por que o interesse mudou"
+    }
+  ],
+  "wbs_impact": "qual arco ou cena é afetado e como",
+  "ai_generated_events": [
+    "gancho narrativo 1",
+    "gancho narrativo 2"
+  ]
+}`,
+    variables: [
+      { key: 'system_rpg', description: 'Sistema de RPG' },
+      { key: 'setting', description: 'Ambientação' },
+      { key: 'core_objective', description: 'Objetivo principal da campanha' },
+      { key: 'stakeholders_summary', description: 'Resumo dos stakeholders ativos' },
+      { key: 'recent_history', description: 'Histórico recente de sessões' },
+      { key: 'event_type', description: 'Tipo do evento (decision, combat, social, etc.)' },
+      { key: 'description', description: 'Descrição do evento' },
+      { key: 'player_choice', description: 'Escolha dos jogadores' }
+    ],
+    temperature: 0.8
+  },
+
+  // ─ Expansor de Conteúdo com IA ────────────────────────────────────────────
+  [AGENT_IDS.AI_EXPANDER]: {
+    name: 'Expansor de Conteúdo com IA',
+    description: 'Expande e aprofunda conteúdo de campanha (NPCs, atos, arcos, ganchos) com detalhes adicionais.',
+    systemPrompt: `Você é um mestre de RPG criativo e detalhista. Expanda conteúdo existente com profundidade narrativa, elementos mecânicos e material imediatamente utilizável em sessão. Use vocabulário adequado ao sistema e ambientação fornecidos.`,
+    promptTemplate: `Você é um mestre de RPG especialista em {{system_rpg}}.
+
+TIPO DE EXPANSÃO: {{expand_type}}
+
+CONTEÚDO A EXPANDIR:
+{{content}}
+
+CONTEXTO DA CAMPANHA:
+{{context}}
+
+TAREFA: Expanda o conteúdo acima com material adicional rico e imediatamente utilizável. Seja específico, cinematográfico e adapte ao sistema {{system_rpg}}.
+
+Para NPCs: inclua histórico, personalidade profunda, hooks de interação.
+Para Atos: inclua cenas intermediárias, diálogos sugeridos, pistas adicionais.
+Para Arcos: inclua sub-tramas, NPCs secundários, locais importantes, twists potenciais.
+Para Ganchos: inclua variações, consequências, conexões com a trama principal.`,
+    variables: [
+      { key: 'expand_type', description: 'Tipo de expansão (npc, act, arc, hook, general)' },
+      { key: 'content', description: 'Conteúdo a ser expandido' },
+      { key: 'context', description: 'Contexto da campanha' },
+      { key: 'system_rpg', description: 'Sistema de RPG' }
+    ],
+    temperature: 0.85
+  },
+
+  // ─ Gerador de Dados de Gestão ─────────────────────────────────────────────
+  [AGENT_IDS.MANAGEMENT_GENERATOR]: {
+    name: 'Gerador de Dados de Gestão',
+    description: 'Gera WBS, análise SWOT do antagonista, matriz de stakeholders e gateways de decisão para uma campanha.',
+    systemPrompt: `Você é um especialista em gestão de projetos narrativos e design de campanhas RPG. Crie estruturas de gestão profissionais adaptadas ao contexto da campanha, com foco em ferramentas práticas para o mestre. Responda SEMPRE em JSON válido.`,
+    promptTemplate: `Crie a estrutura de gestão completa para esta campanha de RPG:
+
+SISTEMA: {{system_rpg}}
+AMBIENTAÇÃO: {{setting}}
+TÍTULO: {{title}}
+
+RESUMO DA CAMPANHA:
+{{adventure_summary}}
+
+GANCHOS:
+{{plot_hooks}}
+
+CONTEXTO 5W2H:
+{{answers_5w2h}}
+
+Gere:
+1. WBS (Work Breakdown Structure) - estrutura hierárquica da campanha
+2. Análise SWOT do antagonista principal
+3. Matriz de Stakeholders (poder × interesse)
+4. Gateways de Decisão (pontos de bifurcação narrativa)
+
+Responda em JSON:
+{
+  "wbs": {
+    "core_objective": "objetivo macro da campanha em 1 frase",
+    "narrative_arcs": [
+      {
+        "name": "Nome do Arco",
+        "description": "descrição breve",
+        "scenes": [
+          { "name": "Nome da Cena", "process": "processo/ação principal" }
+        ]
+      }
+    ]
+  },
+  "antagonist_swot": {
+    "name": "Nome do antagonista",
+    "backstory": "história do antagonista",
+    "motivation": "motivação profunda",
+    "strengths": ["força 1", "força 2", "força 3"],
+    "weaknesses": ["fraqueza 1", "fraqueza 2"],
+    "opportunities": ["oportunidade 1", "oportunidade 2"],
+    "threats": ["ameaça 1", "ameaça 2"]
+  },
+  "stakeholders": [
+    {
+      "name": "Nome do Stakeholder",
+      "title": "Cargo/Título",
+      "archetype": "Facilitador | Obstrutor | Oportunista | Recurso Chave",
+      "description": "descrição breve",
+      "power": 7,
+      "interest": 3
+    }
+  ],
+  "decision_gateways": [
+    {
+      "trigger_condition": "quando/se os jogadores...",
+      "description": "descrição do gateway",
+      "yes_outcome": {
+        "description": "o que acontece se escolherem sim",
+        "consequence": "consequência narrativa"
+      },
+      "no_outcome": {
+        "description": "o que acontece se escolherem não",
+        "consequence": "consequência narrativa"
+      },
+      "arcs_affected": ["Arco 1", "Arco 2"]
+    }
+  ]
+}`,
+    variables: [
+      { key: 'system_rpg', description: 'Sistema de RPG' },
+      { key: 'setting', description: 'Ambientação' },
+      { key: 'title', description: 'Título da campanha' },
+      { key: 'adventure_summary', description: 'Resumo narrativo da campanha' },
+      { key: 'plot_hooks', description: 'Ganchos da campanha' },
+      { key: 'answers_5w2h', description: 'Respostas 5W2H para contexto' }
+    ],
+    temperature: 0.75
   },
 
   // ─ Gerador de Encontro Individual ─────────────────────────────────────────

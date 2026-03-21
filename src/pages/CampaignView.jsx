@@ -7,12 +7,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import NpcCard from '../components/campaign-view/NpcCard';
-import GenerateNpcDialog from '../components/campaign-view/GenerateNpcDialog';
-import GenerateEncounterDialog from '../components/campaign-view/GenerateEncounterDialog';
-import EditableSection from '../components/campaign-view/EditableSection';
-import EncounterCard from '../components/campaign-view/EncounterCard';
-import PlotHooksList from '../components/campaign-view/PlotHooksList';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowLeft,
@@ -24,8 +18,37 @@ import {
   Lock,
   Loader2,
   Share2,
-  Sparkles
+  Sparkles,
+  Anchor,
+  GitBranch,
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
+
+// Campaign view sub-components
+import NpcCard from '../components/campaign-view/NpcCard';
+import GenerateNpcDialog from '../components/campaign-view/GenerateNpcDialog';
+import GenerateEncounterDialog from '../components/campaign-view/GenerateEncounterDialog';
+import EditableSection from '../components/campaign-view/EditableSection';
+import EncounterCard from '../components/campaign-view/EncounterCard';
+import PlotHooksList from '../components/campaign-view/PlotHooksList';
+import HooksView from '../components/campaign-view/HooksView';
+import HooksGenerator from '../components/campaign-view/HooksGenerator';
+import ArcsView from '../components/campaign-view/ArcsView';
+import ArcGenerator from '../components/campaign-view/ArcGenerator';
+import NpcSelector from '../components/campaign-view/NpcSelector';
+
+// Campaign management components
+import WbsView from '../components/campaign-management/WbsView';
+import SwotView from '../components/campaign-management/SwotView';
+import StakeholdersMatrix from '../components/campaign-management/StakeholdersMatrix';
+import DecisionFlowView from '../components/campaign-management/DecisionFlowView';
+import CampaignMap from '../components/campaign-management/CampaignMap';
+
+// Campaign progression components
+import SessionTracker from '../components/campaign-progression/SessionTracker';
+import WorldStateDashboard from '../components/campaign-progression/WorldStateDashboard';
+import RewardsDashboard from '../components/campaign-progression/RewardsDashboard';
 
 export default function CampaignView() {
   const navigate = useNavigate();
@@ -82,6 +105,22 @@ export default function CampaignView() {
     await updateContentMutation.mutateAsync(updatedContent);
   };
 
+  const handleHooksGenerated = async (newHooks) => {
+    const existingHooks = content.plot_hooks || [];
+    const updatedContent = { ...content, plot_hooks: [...existingHooks, ...newHooks] };
+    await updateContentMutation.mutateAsync(updatedContent);
+  };
+
+  const handleArcGenerated = async (newArc) => {
+    const existingArcs = content.narrative_arcs || [];
+    const updatedContent = { ...content, narrative_arcs: [...existingArcs, newArc] };
+    await updateContentMutation.mutateAsync(updatedContent);
+  };
+
+  const handleRefreshCampaign = () => {
+    queryClient.invalidateQueries(['campaign', campaignId]);
+  };
+
   if (!campaignId) {
     return <div className="text-center py-16"><p className="text-slate-400">ID de campanha não fornecido</p></div>;
   }
@@ -108,6 +147,8 @@ export default function CampaignView() {
 
   const content = campaign.content_json || {};
   const isOwner = campaign.userId === user?.uid;
+  const campaignContext = content.adventure_summary || '';
+  const answers5W2H = campaign.answers_5w2h_map || {};
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -157,19 +198,35 @@ export default function CampaignView() {
         </div>
       </div>
 
-      <Tabs defaultValue="narrative" className="space-y-6">
-        <TabsList className="bg-slate-900/50 border border-purple-900/20 p-1">
-          <TabsTrigger value="narrative" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
+      <Tabs defaultValue="description" className="space-y-6">
+        <TabsList className="bg-slate-900/50 border border-purple-900/20 p-1 flex flex-wrap gap-1 h-auto">
+          <TabsTrigger value="description" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
             <BookOpen className="w-4 h-4 mr-2" />
-            Narrativa
+            Descrição
+          </TabsTrigger>
+          <TabsTrigger value="hooks" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
+            <Anchor className="w-4 h-4 mr-2" />
+            Ganchos
+          </TabsTrigger>
+          <TabsTrigger value="arcs" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
+            <GitBranch className="w-4 h-4 mr-2" />
+            Arcos
           </TabsTrigger>
           <TabsTrigger value="npcs" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
             <Users className="w-4 h-4 mr-2" />
-            NPCs e Monstros
+            NPCs
+          </TabsTrigger>
+          <TabsTrigger value="progression" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Progressão
+          </TabsTrigger>
+          <TabsTrigger value="management" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Gestão
           </TabsTrigger>
           <TabsTrigger value="notes" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
             <StickyNote className="w-4 h-4 mr-2" />
-            Notas do Mestre
+            Notas
           </TabsTrigger>
           <TabsTrigger value="settings" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-300">
             <Settings className="w-4 h-4 mr-2" />
@@ -177,7 +234,8 @@ export default function CampaignView() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="narrative" className="space-y-6">
+        {/* ── TAB: DESCRIÇÃO GERAL ── */}
+        <TabsContent value="description" className="space-y-6">
           {content.adventure_summary && isOwner && (
             <EditableSection
               title="Resumo da Aventura"
@@ -194,9 +252,6 @@ export default function CampaignView() {
               </h2>
               <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{content.adventure_summary}</p>
             </div>
-          )}
-          {content.plot_hooks?.length > 0 && (
-            <PlotHooksList hooks={content.plot_hooks} onSave={handleUpdateHooks} isOwner={isOwner} />
           )}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -228,6 +283,72 @@ export default function CampaignView() {
           </div>
         </TabsContent>
 
+        {/* ── TAB: GANCHOS ── */}
+        <TabsContent value="hooks" className="space-y-6">
+          {isOwner && (
+            <HooksGenerator
+              campaignId={campaignId}
+              description={campaignContext}
+              answers5W2H={answers5W2H}
+              systemRpg={campaign.system_rpg}
+              setting={campaign.setting}
+              onHooksGenerated={handleHooksGenerated}
+            />
+          )}
+          {content.plot_hooks?.length > 0 ? (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-white">
+                Ganchos de Plot ({content.plot_hooks.length})
+              </h2>
+              <HooksView
+                hooks={content.plot_hooks}
+                campaignContext={campaignContext}
+                systemRpg={campaign.system_rpg}
+              />
+              {isOwner && (
+                <PlotHooksList hooks={content.plot_hooks} onSave={handleUpdateHooks} isOwner={isOwner} />
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-slate-900/30 border border-slate-800 rounded-2xl">
+              <Anchor className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400">Nenhum gancho gerado ainda. Use o gerador acima para criar ganchos.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── TAB: ARCOS NARRATIVOS ── */}
+        <TabsContent value="arcs" className="space-y-6">
+          {isOwner && (
+            <ArcGenerator
+              campaignId={campaignId}
+              description={campaignContext}
+              answers5W2H={answers5W2H}
+              systemRpg={campaign.system_rpg}
+              setting={campaign.setting}
+              onArcGenerated={handleArcGenerated}
+            />
+          )}
+          {content.narrative_arcs?.length > 0 ? (
+            <ArcsView
+              arcs={content.narrative_arcs}
+              campaignContext={campaignContext}
+              systemRpg={campaign.system_rpg}
+              gateways={content.decision_gateways || []}
+              campaignId={campaignId}
+              campaign={campaign}
+              isOwner={isOwner}
+              onRefresh={handleRefreshCampaign}
+            />
+          ) : (
+            <div className="text-center py-12 bg-slate-900/30 border border-slate-800 rounded-2xl">
+              <GitBranch className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400">Nenhum arco narrativo criado ainda. Use o gerador acima para criar arcos.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ── TAB: NPCs E MONSTROS ── */}
         <TabsContent value="npcs">
           <div className="space-y-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -237,7 +358,7 @@ export default function CampaignView() {
                   {npcs.filter(n => npcFilter === 'all' || n.type === npcFilter).length} personagens
                 </span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <Select value={npcFilter} onValueChange={setNpcFilter}>
                   <SelectTrigger className="w-40 bg-slate-900/50 border-slate-700 text-white">
                     <SelectValue />
@@ -251,12 +372,22 @@ export default function CampaignView() {
                   </SelectContent>
                 </Select>
                 {isOwner && (
-                  <GenerateNpcDialog
-                    campaignId={campaignId}
-                    systemRpg={campaign.system_rpg}
-                    setting={campaign.setting}
-                    onNpcCreated={() => queryClient.invalidateQueries(['npcs', campaignId])}
-                  />
+                  <>
+                    <NpcSelector
+                      campaignId={campaignId}
+                      description={campaignContext}
+                      hooks={content.plot_hooks || []}
+                      arcs={content.narrative_arcs || []}
+                      systemRpg={campaign.system_rpg}
+                      onNpcsCreated={() => queryClient.invalidateQueries(['npcs', campaignId])}
+                    />
+                    <GenerateNpcDialog
+                      campaignId={campaignId}
+                      systemRpg={campaign.system_rpg}
+                      setting={campaign.setting}
+                      onNpcCreated={() => queryClient.invalidateQueries(['npcs', campaignId])}
+                    />
+                  </>
                 )}
               </div>
             </div>
@@ -270,13 +401,114 @@ export default function CampaignView() {
                 {npcs
                   .filter(npc => npcFilter === 'all' || npc.type === npcFilter)
                   .map((npc) => (
-                    <NpcCard key={npc.id} npc={npc} />
+                    <NpcCard
+                      key={npc.id}
+                      npc={npc}
+                      isOwner={isOwner}
+                      campaignId={campaignId}
+                      campaignContext={campaignContext}
+                      systemRpg={campaign.system_rpg}
+                      onUpdate={() => queryClient.invalidateQueries(['npcs', campaignId])}
+                    />
                   ))}
               </div>
             )}
           </div>
         </TabsContent>
 
+        {/* ── TAB: PROGRESSÃO ── */}
+        <TabsContent value="progression" className="space-y-6">
+          <Tabs defaultValue="session" className="space-y-4">
+            <TabsList className="bg-slate-900/30 border border-slate-800 p-1">
+              <TabsTrigger value="session" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
+                Rastreador de Sessão
+              </TabsTrigger>
+              <TabsTrigger value="world" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
+                Estado do Mundo
+              </TabsTrigger>
+              <TabsTrigger value="rewards" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
+                Recompensas
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="session">
+              <SessionTracker campaignId={campaignId} isOwner={isOwner} />
+            </TabsContent>
+            <TabsContent value="world">
+              <WorldStateDashboard campaignId={campaignId} isOwner={isOwner} />
+            </TabsContent>
+            <TabsContent value="rewards">
+              <RewardsDashboard campaignId={campaignId} isOwner={isOwner} />
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        {/* ── TAB: GESTÃO ── */}
+        <TabsContent value="management" className="space-y-6">
+          <Tabs defaultValue="wbs" className="space-y-4">
+            <TabsList className="bg-slate-900/30 border border-slate-800 p-1 flex flex-wrap gap-1 h-auto">
+              <TabsTrigger value="wbs" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
+                WBS
+              </TabsTrigger>
+              <TabsTrigger value="swot" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
+                SWOT do Antagonista
+              </TabsTrigger>
+              <TabsTrigger value="stakeholders" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
+                Stakeholders
+              </TabsTrigger>
+              <TabsTrigger value="decisions" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
+                Gateways
+              </TabsTrigger>
+              <TabsTrigger value="map" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
+                Mapa
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="wbs">
+              <WbsView
+                wbs={content.wbs}
+                isOwner={isOwner}
+                campaignId={campaignId}
+                campaign={campaign}
+                onRefresh={handleRefreshCampaign}
+              />
+            </TabsContent>
+            <TabsContent value="swot">
+              <SwotView
+                swot={content.antagonist_swot}
+                isOwner={isOwner}
+                campaignId={campaignId}
+                campaign={campaign}
+                onRefresh={handleRefreshCampaign}
+              />
+            </TabsContent>
+            <TabsContent value="stakeholders">
+              <StakeholdersMatrix
+                stakeholders={content.stakeholders || []}
+                isOwner={isOwner}
+                campaignId={campaignId}
+                campaign={campaign}
+                onRefresh={handleRefreshCampaign}
+              />
+            </TabsContent>
+            <TabsContent value="decisions">
+              <DecisionFlowView
+                gateways={content.decision_gateways || []}
+                isOwner={isOwner}
+                campaignId={campaignId}
+                campaign={campaign}
+                onRefresh={handleRefreshCampaign}
+              />
+            </TabsContent>
+            <TabsContent value="map">
+              <CampaignMap
+                wbs={content.wbs}
+                stakeholders={content.stakeholders || []}
+                isOwner={isOwner}
+              />
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        {/* ── TAB: NOTAS DO MESTRE ── */}
         <TabsContent value="notes">
           <div className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl">
             <h2 className="text-2xl font-bold text-white mb-4">Notas do Mestre</h2>
@@ -306,6 +538,7 @@ export default function CampaignView() {
           </div>
         </TabsContent>
 
+        {/* ── TAB: CONFIGURAÇÕES ── */}
         <TabsContent value="settings">
           <div className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl space-y-6">
             <h2 className="text-2xl font-bold text-white mb-4">Configurações da Campanha</h2>
