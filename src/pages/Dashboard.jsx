@@ -198,7 +198,7 @@ export default function Dashboard() {
                 <div className="space-y-2 text-sm text-slate-400">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    <span>{campaign.players_count} jogadores</span>
+                    <span>{campaign.players_count || '?'} jogadores</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />

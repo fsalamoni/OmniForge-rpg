@@ -171,6 +171,10 @@ export const NpcCreature = {
     return { id: ref.id, ...data };
   },
 
+  async update(id, data) {
+    await updateDoc(doc(db, 'npcCreatures', id), { ...data, updatedAt: now() });
+  },
+
   async delete(id) {
     await deleteDoc(doc(db, 'npcCreatures', id));
   },
@@ -213,6 +217,62 @@ export const RpgSystem = {
 
   async delete(id) {
     await deleteDoc(doc(db, 'rpgSystems', id));
+  }
+};
+
+// ─── SessionLog ───────────────────────────────────────────────────────────────
+
+export const SessionLog = {
+  async listByCampaign(campaignId) {
+    const q = query(
+      collection(db, 'sessionLogs'),
+      where('campaignId', '==', campaignId)
+    );
+    const snap = await getDocs(q);
+    return toDocs(snap).sort((a, b) => (a.session_number || 0) - (b.session_number || 0));
+  },
+
+  async create(data) {
+    const ref = await addDoc(collection(db, 'sessionLogs'), {
+      ...data,
+      createdAt: now()
+    });
+    return { id: ref.id, ...data };
+  },
+
+  async deleteByCampaign(campaignId) {
+    const logs = await this.listByCampaign(campaignId);
+    await Promise.all(logs.map((l) => deleteDoc(doc(db, 'sessionLogs', l.id))));
+  }
+};
+
+// ─── CampaignReward ───────────────────────────────────────────────────────────
+
+export const CampaignReward = {
+  async listByCampaign(campaignId) {
+    const q = query(
+      collection(db, 'campaignRewards'),
+      where('campaignId', '==', campaignId)
+    );
+    const snap = await getDocs(q);
+    return toDocs(snap).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+  },
+
+  async create(data) {
+    const ref = await addDoc(collection(db, 'campaignRewards'), {
+      ...data,
+      createdAt: now()
+    });
+    return { id: ref.id, ...data };
+  },
+
+  async delete(id) {
+    await deleteDoc(doc(db, 'campaignRewards', id));
+  },
+
+  async deleteByCampaign(campaignId) {
+    const rewards = await this.listByCampaign(campaignId);
+    await Promise.all(rewards.map((r) => deleteDoc(doc(db, 'campaignRewards', r.id))));
   }
 };
 
@@ -320,6 +380,8 @@ export const AdminDB = {
     await Campaign.delete(id);
     await CampaignStep.deleteByCampaign(id);
     await NpcCreature.deleteByCampaign(id);
+    await SessionLog.deleteByCampaign(id);
+    await CampaignReward.deleteByCampaign(id);
   }
 };
 
