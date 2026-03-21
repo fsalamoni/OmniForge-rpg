@@ -37,8 +37,15 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
 
   const handleToggleActCompletion = async (arcIndex, actIndex) => {
     if (!isOwner || !campaignId) return;
-    const updatedArcs = [...arcs];
-    updatedArcs[arcIndex].acts[actIndex].completed = !updatedArcs[arcIndex].acts[actIndex].completed;
+    const updatedArcs = arcs.map((arc, i) => {
+      if (i !== arcIndex) return arc;
+      return {
+        ...arc,
+        acts: arc.acts.map((act, j) =>
+          j !== actIndex ? act : { ...act, completed: !act.completed }
+        )
+      };
+    });
     await Campaign.update(campaignId, {
       content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
     });
@@ -47,9 +54,21 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
 
   const handleToggleSceneCompletion = async (arcIndex, actIndex, sceneIndex) => {
     if (!isOwner || !campaignId) return;
-    const updatedArcs = [...arcs];
-    updatedArcs[arcIndex].acts[actIndex].scenes[sceneIndex].completed =
-      !updatedArcs[arcIndex].acts[actIndex].scenes[sceneIndex].completed;
+    const updatedArcs = arcs.map((arc, i) => {
+      if (i !== arcIndex) return arc;
+      return {
+        ...arc,
+        acts: arc.acts.map((act, j) => {
+          if (j !== actIndex) return act;
+          return {
+            ...act,
+            scenes: act.scenes.map((scene, k) =>
+              k !== sceneIndex ? scene : { ...scene, completed: !scene.completed }
+            )
+          };
+        })
+      };
+    });
     await Campaign.update(campaignId, {
       content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
     });

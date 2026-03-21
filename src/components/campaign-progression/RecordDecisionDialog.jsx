@@ -58,7 +58,7 @@ export default function RecordDecisionDialog({ open, onOpenChange, campaignId, o
       let consequences = null;
       let newEvents = [];
 
-      if (generateConsequences && campaign && userProfile?.aiConfig?.apiKey) {
+      if (generateConsequences && campaign && userProfile?.aiConfig) {
         const recentHistory = sessionLogs
           .slice(-5)
           .map(log => `${log.event_type}: ${log.description} - ${log.player_choice}`)
@@ -246,7 +246,7 @@ Seja específico, dramático e crie conexões causais fortes.`;
               </Label>
               <p className="text-slate-400 text-xs mt-1">
                 A IA analisará o evento e gerará impactos nos stakeholders, WBS e novos eventos narrativos
-                {!userProfile?.aiConfig?.apiKey && ' (configure sua chave de IA no perfil)'}
+                {!userProfile?.aiConfig && ' (configure sua chave de IA no perfil)'}
               </p>
             </div>
           </div>

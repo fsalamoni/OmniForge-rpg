@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,10 @@ export default function EditArcDialog({ arc, onSave }) {
   const [saving, setSaving] = useState(false);
   const [editedArc, setEditedArc] = useState(arc);
   const [expandedActs, setExpandedActs] = useState({});
+
+  useEffect(() => {
+    if (open) setEditedArc(arc);
+  }, [open]);
 
   const handleSave = async () => {
     setSaving(true);

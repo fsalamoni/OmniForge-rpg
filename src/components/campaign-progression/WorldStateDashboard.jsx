@@ -84,7 +84,7 @@ export default function WorldStateDashboard({ campaignId, isOwner }) {
   };
 
   const generateEmergentEvent = async () => {
-    if (!isOwner || !userProfile?.aiConfig?.apiKey) return;
+    if (!isOwner || !userProfile?.aiConfig) return;
 
     setGeneratingEvent(true);
     try {
@@ -189,7 +189,7 @@ TAREFA: Gere UM EVENTO EMERGENTE que seja consequência natural das decisões re
             {isOwner && (
               <Button
                 onClick={generateEmergentEvent}
-                disabled={generatingEvent || !userProfile?.aiConfig?.apiKey}
+                disabled={generatingEvent || !userProfile?.aiConfig}
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 {generatingEvent ? (

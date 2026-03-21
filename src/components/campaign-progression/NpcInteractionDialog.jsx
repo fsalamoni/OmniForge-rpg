@@ -85,7 +85,7 @@ ESTADO ATUAL:
     '→ MUITO HOSTIL aos jogadores'}
 • Poder/Influência: ${power}/10
 • Arquétipo: ${archetype}
-• Motivação Imediata: ${stats.short_term_goal || 'Indefinida'}
+• Motivação Imediata: ${npc.motivation || 'Indefinida'}
 • Ambição de Longo Prazo: ${stats.long_term_ambition || 'Indefinida'}
 
 INFORMAÇÕES SECRETAS (você conhece, mas só revela se apropriado):

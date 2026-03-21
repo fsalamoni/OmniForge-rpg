@@ -99,14 +99,11 @@ Contexto: ${(description || '').substring(0, 600)}`,
 
       if (!result?.name) throw new Error('IA retornou um arco sem nome');
       if (!result.acts?.length) throw new Error('IA não criou nenhum ato para o arco');
-      if (result.acts.length !== numActs) throw new Error(`IA criou ${result.acts.length} atos, mas você pediu ${numActs}. Tente novamente.`);
-
-      for (let i = 0; i < result.acts.length; i++) {
-        const act = result.acts[i];
-        if (!act.scenes || act.scenes.length !== scenesPerAct) {
-          throw new Error(`Ato ${i + 1} tem ${act.scenes?.length || 0} cenas, mas você pediu ${scenesPerAct}. Tente novamente.`);
-        }
+      if (result.acts.length < numActs - 1 || result.acts.length > numActs + 1) {
+        throw new Error(`IA criou ${result.acts.length} atos, mas você pediu ${numActs}. Tente novamente.`);
       }
+      // Trim to exact count if IA returned one extra
+      if (result.acts.length > numActs) result.acts = result.acts.slice(0, numActs);
 
       await onArcGenerated(result);
       setArcName('');

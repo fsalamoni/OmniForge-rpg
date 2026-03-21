@@ -119,7 +119,10 @@ Gere um perfil completo com aparência, personalidade, motivações e papel na c
           stats_json: {
             power: result.power || 5,
             interest: result.interest || 0,
-            archetype: result.archetype || ''
+            archetype: result.archetype || '',
+            long_term_ambition: '',
+            shadow_file: { operational_secret: '', vulnerability: '', hidden_agenda: '' },
+            connections: { primary: '', conflict: '', resource_dependency: '' }
           }
         });
         created.push(npc);
