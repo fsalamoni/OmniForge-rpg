@@ -8,20 +8,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pencil, Loader2 } from 'lucide-react';
 import { NpcCreature } from '@/firebase/db';
 
-export default function EditNpcDialog({ npc, onUpdate }) {
-  const [open, setOpen] = useState(false);
+// Supports both edit mode (npc != null) and create mode (npc == null, requires campaignId + onCreate)
+export default function EditNpcDialog({ npc, onUpdate, campaignId, onCreate, open: controlledOpen, onOpenChange: controlledOnOpenChange }) {
+  const isCreating = !npc;
+  const isControlled = controlledOpen !== undefined;
+
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
+
   const [loading, setLoading] = useState(false);
 
-  const stats = npc.stats_json || {};
+  const stats = npc?.stats_json || {};
   const shadowFile = stats.shadow_file || {};
   const connections = stats.connections || {};
 
   const [formData, setFormData] = useState({
-    name: npc.name,
-    role: npc.role,
-    type: npc.type,
-    motivation: npc.motivation,
-    description: npc.description,
+    name: npc?.name || '',
+    role: npc?.role || '',
+    type: npc?.type || 'NPC',
+    motivation: npc?.motivation || '',
+    description: npc?.description || '',
     power: stats.power || 5,
     interest: stats.interest || 0,
     archetype: stats.archetype || '',
@@ -34,39 +41,47 @@ export default function EditNpcDialog({ npc, onUpdate }) {
     resource_dependency: connections.resource_dependency || ''
   });
 
+  const buildPayload = () => ({
+    name: formData.name,
+    role: formData.role,
+    type: formData.type,
+    motivation: formData.motivation,
+    description: formData.description,
+    stats_json: {
+      ...stats,
+      power: parseInt(formData.power),
+      interest: parseInt(formData.interest),
+      archetype: formData.archetype,
+      long_term_ambition: formData.long_term_ambition,
+      shadow_file: {
+        operational_secret: formData.operational_secret,
+        vulnerability: formData.vulnerability,
+        hidden_agenda: formData.hidden_agenda
+      },
+      connections: {
+        primary: formData.connection_primary,
+        conflict: formData.connection_conflict,
+        resource_dependency: formData.resource_dependency
+      }
+    }
+  });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.name.trim()) { alert('O nome é obrigatório.'); return; }
     setLoading(true);
     try {
-      await NpcCreature.update(npc.id, {
-        name: formData.name,
-        role: formData.role,
-        type: formData.type,
-        motivation: formData.motivation,
-        description: formData.description,
-        stats_json: {
-          ...stats,
-          power: parseInt(formData.power),
-          interest: parseInt(formData.interest),
-          archetype: formData.archetype,
-          long_term_ambition: formData.long_term_ambition,
-          shadow_file: {
-            operational_secret: formData.operational_secret,
-            vulnerability: formData.vulnerability,
-            hidden_agenda: formData.hidden_agenda
-          },
-          connections: {
-            primary: formData.connection_primary,
-            conflict: formData.connection_conflict,
-            resource_dependency: formData.resource_dependency
-          }
-        }
-      });
-      onUpdate();
+      if (isCreating) {
+        await NpcCreature.create({ campaignId, ...buildPayload() });
+        if (onCreate) onCreate();
+      } else {
+        await NpcCreature.update(npc.id, buildPayload());
+        if (onUpdate) onUpdate();
+      }
       setOpen(false);
     } catch (error) {
-      console.error('Erro ao atualizar NPC:', error);
-      alert('Erro ao atualizar NPC. Tente novamente.');
+      console.error('Erro ao salvar NPC:', error);
+      alert('Erro ao salvar NPC. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -76,21 +91,23 @@ export default function EditNpcDialog({ npc, onUpdate }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-          <Pencil className="w-4 h-4" />
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+            <Pencil className="w-4 h-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-900 border-purple-900/20">
         <DialogHeader>
-          <DialogTitle className="text-white text-xl">Editar Personagem</DialogTitle>
+          <DialogTitle className="text-white text-xl">{isCreating ? 'Novo Personagem / Criatura' : 'Editar Personagem'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-purple-300">Informações Básicas</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-300">Nome</Label>
+                <Label className="text-slate-300">Nome *</Label>
                 <Input value={formData.name} onChange={set('name')} className="bg-slate-950/50 border-slate-700 text-white" required />
               </div>
               <div>
@@ -100,9 +117,7 @@ export default function EditNpcDialog({ npc, onUpdate }) {
               <div>
                 <Label className="text-slate-300">Tipo</Label>
                 <Select value={formData.type} onValueChange={(v) => setFormData(p => ({ ...p, type: v }))}>
-                  <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="NPC">NPC</SelectItem>
                     <SelectItem value="Ally">Aliado</SelectItem>
@@ -114,9 +129,7 @@ export default function EditNpcDialog({ npc, onUpdate }) {
               <div>
                 <Label className="text-slate-300">Arquétipo</Label>
                 <Select value={formData.archetype} onValueChange={(v) => setFormData(p => ({ ...p, archetype: v }))}>
-                  <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
+                  <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Facilitador">Facilitador</SelectItem>
                     <SelectItem value="Obstrutor">Obstrutor</SelectItem>
@@ -193,7 +206,7 @@ export default function EditNpcDialog({ npc, onUpdate }) {
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} className="border-slate-700 text-slate-300">Cancelar</Button>
             <Button type="submit" disabled={loading} className="bg-purple-600 hover:bg-purple-700">
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Salvar Alterações'}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : isCreating ? 'Criar Personagem' : 'Salvar Alterações'}
             </Button>
           </div>
         </form>

@@ -8,17 +8,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pencil, Plus, Trash2, GripVertical, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-export default function EditArcDialog({ arc, onSave }) {
-  const [open, setOpen] = useState(false);
+export default function EditArcDialog({ arc, onSave, open: controlledOpen, onOpenChange: controlledOnOpenChange }) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
+
   const [saving, setSaving] = useState(false);
   const [editedArc, setEditedArc] = useState(arc);
   const [expandedActs, setExpandedActs] = useState({});
 
   useEffect(() => {
     if (open) setEditedArc(arc);
-  }, [open]);
+  }, [open, arc]);
 
   const handleSave = async () => {
+    if (!editedArc.name?.trim()) {
+      alert('O arco precisa ter um nome.');
+      return;
+    }
     setSaving(true);
     try {
       await onSave(editedArc);
@@ -114,15 +122,17 @@ export default function EditArcDialog({ arc, onSave }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="border-purple-500/30 text-purple-300">
-          <Pencil className="w-4 h-4 mr-2" />
-          Editar Arco
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="border-purple-500/30 text-purple-300">
+            <Pencil className="w-4 h-4 mr-2" />
+            Editar Arco
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="bg-slate-900 border-purple-900/20 max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-white">Editar Arco: {arc.name}</DialogTitle>
+          <DialogTitle className="text-white">{arc?.name ? `Editar Arco: ${arc.name}` : 'Novo Arco Narrativo'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
