@@ -370,7 +370,7 @@ export default function NpcsByArcView({
           borderClass="border-slate-600/40"
         >
           <p className="text-slate-500 text-xs mb-3">
-            {isOwner ? 'Clique no ícone 🔗 para associar um NPC a um arco.' : 'NPCs sem arco associado.'}
+            {isOwner ? 'Clique no ícone de link para associar um NPC a um arco.' : 'NPCs sem arco associado.'}
           </p>
           <div className="grid md:grid-cols-2 gap-3">
             {unassignedNpcs.map(npc => (

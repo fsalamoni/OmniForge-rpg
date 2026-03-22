@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { MapPin, Plus, Trash2, Upload, Edit2, X } from 'lucide-react';
 import { Campaign, CampaignStorage } from '@/firebase/db';
 
+const DEFAULT_MARKER_ICON = '📍';
+
 const MARKER_ICONS = {
-  location: '📍',
+  location: DEFAULT_MARKER_ICON,
   scene: '🎬',
   stakeholder: '👤',
   poi: '⭐',
@@ -78,7 +80,7 @@ function MapCanvas({ map, isOwner, onAddMarker, onRemoveMarker }) {
           onMouseLeave={() => setHovered(null)}
         >
           <div className="text-2xl filter drop-shadow-lg cursor-default select-none">
-            {MARKER_ICONS[marker.type] || '📍'}
+            {MARKER_ICONS[marker.type] || DEFAULT_MARKER_ICON}
           </div>
 
           {hovered === index && (
@@ -446,7 +448,7 @@ export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, in
               <div className="flex flex-wrap gap-2">
                 {activeMap.markers.map((m) => (
                   <div key={m.id} className="flex items-center gap-1 px-2 py-1 bg-slate-800/50 border border-slate-700 rounded text-xs text-slate-300">
-                    <span>{MARKER_ICONS[m.type] || '📍'}</span>
+                    <span>{MARKER_ICONS[m.type] || DEFAULT_MARKER_ICON}</span>
                     <span>{m.name}</span>
                     {isOwner && (
                       <button onClick={() => handleRemoveMarker(m.id)} className="text-slate-500 hover:text-red-400 ml-1">

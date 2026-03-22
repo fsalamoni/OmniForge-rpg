@@ -26,6 +26,7 @@ export default function StakeholdersMatrix({ stakeholders, npcs = [], isOwner = 
           description: npc.description || '',
           motivation: npc.motivation || '',
           long_term_goal: npc.stats_json?.long_term_ambition || '',
+          // interest: neutral (0 = neither for nor against); power: mid-range (5 out of 10)
           interest: npc.stats_json?.interest || 0,
           power: npc.stats_json?.power || 5,
         }));
