@@ -120,6 +120,48 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
     if (onRefresh) onRefresh();
   };
 
+  const handleToggleActCompletion = async (arcIndex, actIndex) => {
+    if (!isOwner || !campaignId) return;
+    const updatedArcs = arcs.map((arc, i) => {
+      if (i !== arcIndex) return arc;
+      return {
+        ...arc,
+        acts: arc.acts.map((act, j) => {
+          if (j !== actIndex) return act;
+          return { ...act, completed: !act.completed };
+        })
+      };
+    });
+    await Campaign.update(campaignId, {
+      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
+    });
+    if (onRefresh) onRefresh();
+  };
+
+  const handleToggleSceneCompletion = async (arcIndex, actIndex, sceneIndex) => {
+    if (!isOwner || !campaignId) return;
+    const updatedArcs = arcs.map((arc, i) => {
+      if (i !== arcIndex) return arc;
+      return {
+        ...arc,
+        acts: arc.acts.map((act, j) => {
+          if (j !== actIndex) return act;
+          return {
+            ...act,
+            scenes: (act.scenes || []).map((scene, k) => {
+              if (k !== sceneIndex) return scene;
+              return { ...scene, completed: !scene.completed };
+            })
+          };
+        })
+      };
+    });
+    await Campaign.update(campaignId, {
+      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
+    });
+    if (onRefresh) onRefresh();
+  };
+
   const handleDeleteEncounterFromScene = async (arcIdx, actIdx, sceneIdx, encIdx) => {
     if (!confirm('Remover este encontro?')) return;
     const updatedArcs = arcs.map((arc, i) => {
@@ -333,7 +375,12 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
               {expandedArcs[arcIndex] && arc.acts && arc.acts.length > 0 && (
                 <CardContent className="space-y-3">
                   {isOwner && (
-                    <ArcCompletionTracker arc={arc} isOwner={isOwner} />
+                    <ArcCompletionTracker
+                      arc={arc}
+                      isOwner={isOwner}
+                      onToggleAct={(actIdx) => handleToggleActCompletion(arcIndex, actIdx)}
+                      onToggleScene={(actIdx, scIdx) => handleToggleSceneCompletion(arcIndex, actIdx, scIdx)}
+                    />
                   )}
 
                   {(arc.arc_objective || arc.world_change || arc.arc_villain) && (

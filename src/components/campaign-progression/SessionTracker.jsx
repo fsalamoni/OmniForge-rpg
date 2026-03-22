@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, TrendingUp, TrendingDown, Plus } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown, Plus, CheckCircle2 } from 'lucide-react';
 import RecordDecisionDialog from './RecordDecisionDialog';
 import { SessionLog } from '@/firebase/db';
 
 export default function SessionTracker({ campaignId, isOwner }) {
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [sessionLogs, setSessionLogs] = useState([]);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const loadLogs = async () => {
     if (!campaignId) return;
@@ -47,17 +48,29 @@ export default function SessionTracker({ campaignId, isOwner }) {
     milestone: 'bg-amber-600/20 text-amber-300 border-amber-500/30'
   };
 
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
   const formatDate = (ts) => {
     try {
       const d = ts?.toDate ? ts.toDate() : new Date(ts);
+      if (isNaN(d.getTime())) return 'Data desconhecida';
       return d.toLocaleDateString('pt-BR');
     } catch {
-      return '';
+      return 'Data desconhecida';
     }
   };
 
   return (
     <div className="space-y-6">
+      {successMsg && (
+        <div className="flex items-center gap-2 p-3 bg-green-900/30 border border-green-500/40 rounded-lg text-green-300 text-sm">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          {successMsg}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white mb-1">
@@ -222,6 +235,7 @@ export default function SessionTracker({ campaignId, isOwner }) {
           onSuccess={() => {
             loadLogs();
             setRecordDialogOpen(false);
+            showSuccess('Evento registrado com sucesso!');
           }}
         />
       )}

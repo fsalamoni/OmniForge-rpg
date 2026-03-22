@@ -593,6 +593,9 @@ export default function CampaignView() {
                 wbs={content.wbs}
                 stakeholders={content.stakeholders || []}
                 isOwner={isOwner}
+                campaignId={campaignId}
+                initialMarkers={content.map_markers || []}
+                content={content}
               />
             </TabsContent>
           </Tabs>
