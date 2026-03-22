@@ -40,7 +40,7 @@ export default function EditArcDialog({ arc, onSave, open: controlledOpen, onOpe
 
   const handleActDragEnd = (result) => {
     if (!result.destination) return;
-    const items = Array.from(editedArc.acts);
+    const items = Array.from(editedArc.acts || []);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
     setEditedArc({ ...editedArc, acts: items });
@@ -65,7 +65,7 @@ export default function EditArcDialog({ arc, onSave, open: controlledOpen, onOpe
       completed: false,
       scenes: []
     };
-    setEditedArc({ ...editedArc, acts: [...editedArc.acts, newAct] });
+    setEditedArc({ ...editedArc, acts: [...(editedArc.acts || []), newAct] });
   };
 
   const updateAct = (actIndex, field, value) => {
@@ -76,7 +76,7 @@ export default function EditArcDialog({ arc, onSave, open: controlledOpen, onOpe
 
   const deleteAct = (actIndex) => {
     if (!confirm('Deletar este ato e todas as suas cenas?')) return;
-    const newActs = editedArc.acts.filter((_, i) => i !== actIndex);
+    const newActs = (editedArc.acts || []).filter((_, i) => i !== actIndex);
     setEditedArc({ ...editedArc, acts: newActs });
   };
 
@@ -154,9 +154,61 @@ export default function EditArcDialog({ arc, onSave, open: controlledOpen, onOpe
             />
           </div>
 
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-slate-300">🎯 Objetivo do Arco</Label>
+              <Textarea
+                value={editedArc.arc_objective || ''}
+                onChange={(e) => setEditedArc({ ...editedArc, arc_objective: e.target.value })}
+                className="bg-slate-950/50 border-slate-700 text-white mt-2"
+                placeholder="O objetivo central que os jogadores precisam alcançar"
+                rows={2}
+              />
+            </div>
+            <div>
+              <Label className="text-slate-300">⚔️ Vilão do Arco</Label>
+              <Textarea
+                value={editedArc.arc_villain || ''}
+                onChange={(e) => setEditedArc({ ...editedArc, arc_villain: e.target.value })}
+                className="bg-slate-950/50 border-slate-700 text-white mt-2"
+                placeholder="Antagonista principal deste arco"
+                rows={2}
+              />
+            </div>
+            <div>
+              <Label className="text-slate-300">🌍 Mudança de Estado</Label>
+              <Textarea
+                value={editedArc.world_change || ''}
+                onChange={(e) => setEditedArc({ ...editedArc, world_change: e.target.value })}
+                className="bg-slate-950/50 border-slate-700 text-white mt-2"
+                placeholder="Como o mundo muda ao final deste arco"
+                rows={2}
+              />
+            </div>
+            <div>
+              <Label className="text-slate-300">🎭 Tom e Temas</Label>
+              <Input
+                value={editedArc.tone_and_themes || ''}
+                onChange={(e) => setEditedArc({ ...editedArc, tone_and_themes: e.target.value })}
+                className="bg-slate-950/50 border-slate-700 text-white mt-2"
+                placeholder="Ex: traição, redenção, horror cósmico"
+              />
+            </div>
+            <div>
+              <Label className="text-slate-300">⚡ O que está em jogo</Label>
+              <Textarea
+                value={editedArc.stakes || ''}
+                onChange={(e) => setEditedArc({ ...editedArc, stakes: e.target.value })}
+                className="bg-slate-950/50 border-slate-700 text-white mt-2"
+                placeholder="Consequências de falha e de sucesso"
+                rows={2}
+              />
+            </div>
+          </div>
+
           <div className="border-t border-slate-700 pt-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-semibold">Atos ({editedArc.acts.length})</h3>
+              <h3 className="text-white font-semibold">Atos ({(editedArc.acts || []).length})</h3>
               <Button onClick={addAct} size="sm" className="bg-purple-600">
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Ato
@@ -167,7 +219,7 @@ export default function EditArcDialog({ arc, onSave, open: controlledOpen, onOpe
               <Droppable droppableId="acts">
                 {(provided) => (
                   <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                    {editedArc.acts.map((act, actIndex) => (
+                    {(editedArc.acts || []).map((act, actIndex) => (
                       <Draggable key={actIndex} draggableId={`act-${actIndex}`} index={actIndex}>
                         {(provided) => (
                           <div

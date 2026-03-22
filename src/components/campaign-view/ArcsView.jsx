@@ -273,6 +273,7 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
                 npcs={npcs}
                 systemRpg={campaign?.system_rpg || 'D&D 5e'}
                 setting={campaign?.setting || ''}
+                existingArcs={arcs || []}
                 onArcGenerated={handleArcCreatedFromAI}
               />
             </div>
@@ -373,9 +374,9 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
                 </div>
               </CardHeader>
 
-              {expandedArcs[arcIndex] && arc.acts && arc.acts.length > 0 && (
+              {expandedArcs[arcIndex] && (
                 <CardContent className="space-y-3">
-                  {isOwner && (
+                  {arc.acts && arc.acts.length > 0 && isOwner && (
                     <ArcCompletionTracker
                       arc={arc}
                       isOwner={isOwner}
@@ -384,24 +385,55 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
                     />
                   )}
 
-                  {(arc.arc_objective || arc.world_change || arc.arc_villain) && (
-                    <div className="grid md:grid-cols-3 gap-4 mb-4">
-                      {arc.arc_objective && (
-                        <div className="bg-purple-900/10 border border-purple-500/20 p-3 rounded-lg">
-                          <h5 className="text-purple-300 font-semibold text-xs mb-1">🎯 OBJETIVO DO ARCO</h5>
-                          <p className="text-slate-300 text-sm">{arc.arc_objective}</p>
+                  {(arc.arc_objective || arc.world_change || arc.arc_villain || arc.tone_and_themes || arc.stakes) && (
+                    <div className="space-y-4 mb-4">
+                      <div className="grid md:grid-cols-3 gap-4">
+                        {arc.arc_objective && (
+                          <div className="bg-purple-900/10 border border-purple-500/20 p-3 rounded-lg">
+                            <h5 className="text-purple-300 font-semibold text-xs mb-1">🎯 OBJETIVO DO ARCO</h5>
+                            <p className="text-slate-300 text-sm">{arc.arc_objective}</p>
+                          </div>
+                        )}
+                        {arc.world_change && (
+                          <div className="bg-blue-900/10 border border-blue-500/20 p-3 rounded-lg">
+                            <h5 className="text-blue-300 font-semibold text-xs mb-1">🌍 MUDANÇA DE ESTADO</h5>
+                            <p className="text-slate-300 text-sm">{arc.world_change}</p>
+                          </div>
+                        )}
+                        {arc.arc_villain && (
+                          <div className="bg-red-900/10 border border-red-500/20 p-3 rounded-lg">
+                            <h5 className="text-red-300 font-semibold text-xs mb-1">⚔️ VILÃO DO ARCO</h5>
+                            <p className="text-slate-300 text-sm">{arc.arc_villain}</p>
+                          </div>
+                        )}
+                      </div>
+                      {(arc.tone_and_themes || arc.stakes) && (
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {arc.tone_and_themes && (
+                            <div className="bg-indigo-900/10 border border-indigo-500/20 p-3 rounded-lg">
+                              <h5 className="text-indigo-300 font-semibold text-xs mb-1">🎭 TOM E TEMAS</h5>
+                              <p className="text-slate-300 text-sm">{arc.tone_and_themes}</p>
+                            </div>
+                          )}
+                          {arc.stakes && (
+                            <div className="bg-amber-900/10 border border-amber-500/20 p-3 rounded-lg">
+                              <h5 className="text-amber-300 font-semibold text-xs mb-1">⚡ O QUE ESTÁ EM JOGO</h5>
+                              <p className="text-slate-300 text-sm">{arc.stakes}</p>
+                            </div>
+                          )}
                         </div>
                       )}
-                      {arc.world_change && (
-                        <div className="bg-blue-900/10 border border-blue-500/20 p-3 rounded-lg">
-                          <h5 className="text-blue-300 font-semibold text-xs mb-1">🌍 MUDANÇA DE ESTADO</h5>
-                          <p className="text-slate-300 text-sm">{arc.world_change}</p>
-                        </div>
-                      )}
-                      {arc.arc_villain && (
-                        <div className="bg-red-900/10 border border-red-500/20 p-3 rounded-lg">
-                          <h5 className="text-red-300 font-semibold text-xs mb-1">⚔️ VILÃO DO ARCO</h5>
-                          <p className="text-slate-300 text-sm">{arc.arc_villain}</p>
+                      {arc.future_hooks && arc.future_hooks.length > 0 && (
+                        <div className="bg-cyan-900/10 border border-cyan-500/20 p-3 rounded-lg">
+                          <h5 className="text-cyan-300 font-semibold text-xs mb-1">🔗 GANCHOS PARA ARCOS FUTUROS</h5>
+                          <ul className="space-y-1">
+                            {arc.future_hooks.map((hook, idx) => (
+                              <li key={idx} className="text-slate-300 text-sm flex items-start gap-2">
+                                <span className="text-cyan-400 mt-0.5">•</span>
+                                <span>{hook}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
                     </div>
@@ -416,7 +448,17 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
                     />
                   </div>
 
-                  {arc.acts.map((act, actIndex) => {
+                  {(!arc.acts || arc.acts.length === 0) && (
+                    <div className="text-center py-8 bg-slate-950/30 border border-slate-700 rounded-lg">
+                      <BookOpen className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                      <p className="text-slate-400 text-sm mb-2">Este arco ainda não possui atos e cenas.</p>
+                      {isOwner && (
+                        <p className="text-slate-500 text-xs">Use o botão "Editar Arco" para adicionar atos e cenas manualmente.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {(arc.acts || []).map((act, actIndex) => {
                     const isExpanded = expandedActs[`${arcIndex}-${actIndex}`];
                     return (
                       <Card key={actIndex} className="bg-slate-950/50 border-slate-700">
