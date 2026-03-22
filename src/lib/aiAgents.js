@@ -547,10 +547,13 @@ Responda em JSON:
   },
 
   // ─ Gerador de Arco Narrativo ──────────────────────────────────────────────
+  // NOTA: O ArcGenerator.jsx utiliza geração multi-etapa com prompts próprios,
+  // chamando invokeLLM diretamente em 3 passos (overview → atos → cenas).
+  // Este agente é mantido para referência e para o painel Admin.
   [AGENT_IDS.ARC_GENERATOR]: {
-    name: 'Gerador de Arco Narrativo',
-    description: 'Gera um arco narrativo completo com atos e cenas detalhadas para uma campanha.',
-    systemPrompt: `Você é um mestre de RPG especialista em estrutura narrativa épica. Crie arcos de campanha com atos bem definidos e cenas imersivas, adaptados ao sistema e ambientação fornecidos. Responda SEMPRE em JSON válido.`,
+    name: 'Gerador de Arco Narrativo (Multi-Etapa)',
+    description: 'Gera um arco narrativo completo com atos e cenas detalhadas em múltiplas etapas de IA para máxima qualidade.',
+    systemPrompt: `Você é um mestre de RPG lendário, especialista em estrutura narrativa épica e design de aventuras imersivas. Crie arcos de campanha com atos bem definidos e cenas ricamente detalhadas, com textos de leitura em voz alta que transportam os jogadores para dentro da cena. Inclua descrições sensoriais (visão, audição, olfato, tato), atmosfera emocional, e mecânicas de jogo detalhadas. Responda SEMPRE em JSON válido.`,
     promptTemplate: `TAREFA: Criar arco de RPG completo com {{num_acts}} atos, cada ato com {{scenes_per_act}} cenas.
 
 INFORMAÇÕES DO ARCO:
@@ -565,57 +568,62 @@ CONTEXTO DA CAMPANHA:
 CONTEXTO 5W2H:
 {{answers_5w2h}}
 
-{{#custom_instructions}}
-INSTRUÇÕES ESPECÍFICAS:
 {{custom_instructions}}
-{{/custom_instructions}}
 
-REGRA ABSOLUTA: Gere EXATAMENTE {{num_acts}} atos × {{scenes_per_act}} cenas = {{num_acts}} atos no total.
+REGRA ABSOLUTA: Gere EXATAMENTE {{num_acts}} atos × {{scenes_per_act}} cenas.
+
+O arco NÃO representa todo o jogo — é um segmento da campanha.
+Deve ter ganchos que conectem a arcos futuros.
 
 Para cada CENA inclua:
-- scene_name: nome evocativo
-- scene_type: "Combate" | "Social" | "Exploração" | "Investigação" | "Climax"
-- trigger: o que ativa esta cena
-- read_aloud: texto para leitura em voz alta pelo mestre (2-3 frases atmosféricas)
-- hidden_reality: o que está realmente acontecendo por trás das aparências
-- secrets_and_clues: pistas escondidas que os jogadores podem encontrar
-- objective: objetivo dos jogadores nesta cena
-- opposition_passive: obstáculos passivos (ambientais, sociais)
-- opposition_active: oponentes ativos e suas táticas
-- suggested_checks: testes mecânicos sugeridos (ex: Percepção DC 15)
-- rewards: recompensas possíveis
-- outcomes: possíveis desfechos (sucesso total, parcial, falha)
+- scene_name: nome evocativo e descritivo
+- scene_type: "Combate" | "Social" | "Exploração" | "Puzzle" | "Híbrido"
+- trigger: o que ativa esta cena (evento ou decisão específica)
+- read_aloud: texto LONGO e IMERSIVO para leitura em voz alta (mínimo 5-8 frases com descrições visuais, sonoras, olfativas, táteis e atmosfera emocional)
+- hidden_reality: o que está realmente acontecendo por trás das aparências (2-4 frases)
+- secrets_and_clues: [{clue, how_to_find}] — 2-4 pistas por cena
+- objective: objetivo concreto dos jogadores
+- opposition_passive: obstáculos ambientais e sociais (2-3 frases)
+- opposition_active: oponentes ativos e suas táticas (2-3 frases)
+- suggested_checks: [{skill, dc, on_success, on_failure}] — 2-4 testes mecânicos
+- outcomes: 2-4 possíveis desfechos (sucesso total, parcial, falha, variações morais)
+- exits: transições possíveis para a próxima cena
+- rewards: recompensas concretas (itens, informações, aliados)
 
 Responda em JSON com estrutura:
 {
   "name": "{{arc_name}}",
-  "arc_objective": "objetivo principal do arco",
-  "world_change": "como o mundo muda ao completar este arco",
-  "arc_villain": "antagonista principal deste arco",
-  "description": "descrição narrativa do arco (3-4 frases)",
+  "description": "descrição narrativa rica e imersiva (4-6 frases)",
+  "arc_objective": "objetivo central do arco (2-3 frases)",
+  "world_change": "como o mundo muda ao completar este arco (2-3 frases)",
+  "arc_villain": "antagonista principal — nome, motivação e método (2-3 frases)",
+  "tone_and_themes": "tom narrativo e temas centrais",
+  "stakes": "consequências de falha e sucesso (2-3 frases)",
+  "future_hooks": ["gancho futuro 1", "gancho futuro 2"],
   "acts": [
     {
       "title": "Título do Ato",
-      "act_function": "Inciting Incident | Rising Action | Climax | Resolution",
-      "description": "descrição do ato",
-      "objectives": "objetivos dos jogadores neste ato",
-      "twist": "reviravolta ou surpresa",
+      "act_function": "setup|rising_action|climax|falling_action",
+      "description": "descrição rica do ato (3-5 frases)",
+      "objectives": ["objetivo 1", "objetivo 2", "objetivo 3"],
+      "twist": "reviravolta surpreendente",
       "npcs_involved": ["NPC 1", "NPC 2"],
       "completed": false,
       "scenes": [
         {
-          "scene_name": "Nome da Cena",
+          "scene_name": "Nome Evocativo da Cena",
           "scene_type": "Combate",
-          "trigger": "o que ativa a cena",
-          "read_aloud": "texto atmosférico para leitura",
-          "hidden_reality": "verdade oculta",
-          "secrets_and_clues": "pistas disponíveis",
-          "objective": "objetivo dos jogadores",
-          "opposition_passive": "obstáculos passivos",
+          "trigger": "evento específico que inicia a cena",
+          "read_aloud": "TEXTO LONGO E IMERSIVO com todos os sentidos descritos",
+          "hidden_reality": "verdade oculta detalhada",
+          "secrets_and_clues": [{"clue": "pista", "how_to_find": "método"}],
+          "objective": "objetivo concreto",
+          "opposition_passive": "obstáculos ambientais",
           "opposition_active": "oponentes e táticas",
-          "suggested_checks": "testes sugeridos",
-          "rewards": "recompensas",
-          "outcomes": "desfechos possíveis",
+          "suggested_checks": [{"skill": "Percepção", "dc": "15", "on_success": "resultado", "on_failure": "resultado"}],
+          "outcomes": ["sucesso total", "sucesso parcial", "falha"],
+          "exits": "transições possíveis",
+          "rewards": "recompensas concretas",
           "completed": false
         }
       ]
