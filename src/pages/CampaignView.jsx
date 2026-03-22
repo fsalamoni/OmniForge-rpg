@@ -420,6 +420,7 @@ export default function CampaignView() {
             onArcCreated={isOwner ? handleArcGenerated : undefined}
             answers5W2H={answers5W2H}
             hooks={content.plot_hooks || []}
+            npcs={npcs}
           />
         </TabsContent>
 

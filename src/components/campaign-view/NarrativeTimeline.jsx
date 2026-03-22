@@ -11,7 +11,8 @@ export default function NarrativeTimeline({ arcs = [], gateways = [] }) {
   const toggleArc = (index) => setExpandedArcs(prev => ({ ...prev, [index]: !prev[index] }));
 
   const toggleAllArcs = () => {
-    if (Object.keys(expandedArcs).length === arcs.length) {
+    const allAreExpanded = arcs.length > 0 && arcs.every((_, i) => expandedArcs[i]);
+    if (allAreExpanded) {
       setExpandedArcs({});
     } else {
       const allExpanded = {};
