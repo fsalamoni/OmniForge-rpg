@@ -6,7 +6,7 @@ import { Target, ChevronDown, ChevronRight, Edit } from 'lucide-react';
 import EditWbsDialog from './EditWbsDialog';
 import { Campaign } from '@/firebase/db';
 
-export default function WbsView({ wbs, isOwner, campaignId, campaign, onRefresh }) {
+export default function WbsView({ wbs, isOwner, campaignId, campaign, onRefresh, arcs = [], npcs = [] }) {
   const [expandedArcs, setExpandedArcs] = useState({});
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -25,11 +25,50 @@ export default function WbsView({ wbs, isOwner, campaignId, campaign, onRefresh 
     'Exploração': 'bg-green-600/20 text-green-300 border-green-500/30'
   };
 
+  const handleSyncWithArcs = async () => {
+    if (!arcs || arcs.length === 0) return;
+    const generatedWbs = {
+      core_objective: campaign?.content_json?.premissa || 'Objetivo principal da campanha',
+      narrative_arcs: arcs.map((arc) => ({
+        name: arc.name || 'Arco sem nome',
+        description: arc.description || '',
+        scenes: (arc.acts || []).flatMap((act) =>
+          (act.scenes || []).map((scene) => ({
+            name: scene.scene_name || 'Cena sem nome',
+            challenge_type: scene.scene_type === 'combat' ? 'Combate' :
+                            scene.scene_type === 'social' ? 'Social' : 'Exploração',
+            input: scene.trigger || '',
+            process: scene.objective || '',
+            deliverable: scene.outcomes?.[0] || ''
+          }))
+        )
+      }))
+    };
+    await Campaign.update(campaignId, {
+      content_json: { ...campaign.content_json, wbs: generatedWbs }
+    });
+    if (onRefresh) onRefresh();
+  };
+
   if (!wbs) {
     return (
       <div className="text-center py-8 text-slate-400">
         <Target className="w-12 h-12 mx-auto mb-3 text-slate-600" />
         <p>Estrutura WBS não disponível</p>
+        {isOwner && arcs.length > 0 && (
+          <div className="mt-4">
+            <Button
+              onClick={handleSyncWithArcs}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <Target className="w-4 h-4 mr-2" />
+              Sincronizar com Arcos
+            </Button>
+            <p className="text-xs text-slate-500 mt-2">
+              Gera a WBS automaticamente a partir dos {arcs.length} arcos narrativos
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -37,7 +76,13 @@ export default function WbsView({ wbs, isOwner, campaignId, campaign, onRefresh 
   return (
     <div className="space-y-6">
       {isOwner && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {arcs.length > 0 && (
+            <Button onClick={handleSyncWithArcs} variant="outline" className="border-blue-500/30 text-blue-300 hover:bg-blue-900/20">
+              <Target className="w-4 h-4 mr-2" />
+              Sincronizar com Arcos
+            </Button>
+          )}
           <Button onClick={() => setEditDialogOpen(true)} variant="outline" className="border-purple-500/30">
             <Edit className="w-4 h-4 mr-2" />
             Editar WBS

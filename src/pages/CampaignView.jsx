@@ -30,7 +30,9 @@ import {
   Swords,
   Shield,
   Star,
-  Clock
+  Clock,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 
 // Campaign view sub-components
@@ -42,6 +44,7 @@ import PlotHooksList from '../components/campaign-view/PlotHooksList';
 import HooksView from '../components/campaign-view/HooksView';
 import HooksGenerator from '../components/campaign-view/HooksGenerator';
 import ArcsView from '../components/campaign-view/ArcsView';
+import NpcsByArcView from '../components/campaign-view/NpcsByArcView';
 import NpcSelector from '../components/campaign-view/NpcSelector';
 import ManualDescriptionDialog from '../components/campaign-view/ManualDescriptionDialog';
 
@@ -74,6 +77,7 @@ export default function CampaignView() {
   const [npcCreatorMode, setNpcCreatorMode] = useState(null); // null | 'ai' | 'manual'
   const [manualNpcDialogOpen, setManualNpcDialogOpen] = useState(false);
   const [manualDescriptionOpen, setManualDescriptionOpen] = useState(false);
+  const [npcViewMode, setNpcViewMode] = useState('grid'); // 'grid' | 'hierarchical'
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', campaignId],
@@ -435,6 +439,29 @@ export default function CampaignView() {
                 </span>
               </div>
               <div className="flex flex-wrap gap-3">
+                {/* View mode toggle */}
+                <div className="flex items-center bg-slate-900/50 border border-slate-700 rounded-lg p-1 gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={`h-7 px-2 text-xs ${npcViewMode === 'grid' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                    onClick={() => setNpcViewMode('grid')}
+                    title="Vista de Grade"
+                  >
+                    <LayoutGrid className="w-4 h-4 mr-1" />
+                    Grade
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={`h-7 px-2 text-xs ${npcViewMode === 'hierarchical' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                    onClick={() => setNpcViewMode('hierarchical')}
+                    title="Vista Hierárquica"
+                  >
+                    <List className="w-4 h-4 mr-1" />
+                    Hierárquica
+                  </Button>
+                </div>
                 <Select value={npcFilter} onValueChange={setNpcFilter}>
                   <SelectTrigger className="w-40 bg-slate-900/50 border-slate-700 text-white">
                     <SelectValue />
@@ -518,6 +545,17 @@ export default function CampaignView() {
                 <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
                 <p className="text-slate-400">Nenhum NPC ou criatura criado ainda</p>
               </div>
+            ) : npcViewMode === 'hierarchical' ? (
+              <NpcsByArcView
+                arcs={content.narrative_arcs || []}
+                npcs={npcs}
+                isOwner={isOwner}
+                campaignId={campaignId}
+                campaignContext={campaignContext}
+                systemRpg={campaign.system_rpg}
+                onUpdate={() => queryClient.invalidateQueries(['npcs', campaignId])}
+                npcFilter={npcFilter}
+              />
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
                 {npcs
@@ -578,6 +616,8 @@ export default function CampaignView() {
                 campaignId={campaignId}
                 campaign={campaign}
                 onRefresh={handleRefreshCampaign}
+                arcs={content.narrative_arcs || []}
+                npcs={npcs}
               />
             </TabsContent>
             <TabsContent value="swot">
@@ -587,6 +627,7 @@ export default function CampaignView() {
                 campaignId={campaignId}
                 campaign={campaign}
                 onRefresh={handleRefreshCampaign}
+                npcs={npcs}
               />
             </TabsContent>
             <TabsContent value="stakeholders">
@@ -596,6 +637,7 @@ export default function CampaignView() {
                 campaignId={campaignId}
                 campaign={campaign}
                 onRefresh={handleRefreshCampaign}
+                npcs={npcs}
               />
             </TabsContent>
             <TabsContent value="decisions">

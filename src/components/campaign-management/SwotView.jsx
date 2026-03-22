@@ -5,8 +5,9 @@ import { Shield, Edit } from 'lucide-react';
 import EditSwotDialog from './EditSwotDialog';
 import { Campaign } from '@/firebase/db';
 
-export default function SwotView({ swot, isOwner, campaignId, campaign, onRefresh }) {
+export default function SwotView({ swot, isOwner, campaignId, campaign, onRefresh, npcs = [] }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [suggestedSwot, setSuggestedSwot] = useState(null);
 
   const handleSaveSwot = async (updatedSwot) => {
     await Campaign.update(campaignId, {
@@ -15,11 +16,69 @@ export default function SwotView({ swot, isOwner, campaignId, campaign, onRefres
     if (onRefresh) onRefresh();
   };
 
+  const handleImportVillains = () => {
+    const villains = npcs.filter(n => n.type === 'Villain');
+    if (villains.length === 0) return;
+    const mainVillain = villains[0];
+    const suggested = {
+      name: mainVillain.name,
+      backstory: mainVillain.description || '',
+      motivation: mainVillain.motivation || mainVillain.stats_json?.long_term_ambition || '',
+      strengths: [
+        mainVillain.stats_json?.archetype ? `Arquétipo: ${mainVillain.stats_json.archetype}` : null,
+        mainVillain.stats_json?.connections?.primary ? `Aliança: ${mainVillain.stats_json.connections.primary}` : null,
+      ].filter(Boolean),
+      weaknesses: [
+        mainVillain.stats_json?.shadow_file?.vulnerability || null,
+      ].filter(Boolean),
+      opportunities: [],
+      threats: [
+        mainVillain.stats_json?.shadow_file?.hidden_agenda ? `Agenda oculta: ${mainVillain.stats_json.shadow_file.hidden_agenda}` : null,
+      ].filter(Boolean),
+    };
+    setSuggestedSwot(suggested);
+  };
+
   if (!swot) {
     return (
       <div className="text-center py-8 text-slate-400">
         <Shield className="w-12 h-12 mx-auto mb-3 text-slate-600" />
         <p>Análise SWOT do antagonista não disponível</p>
+        {isOwner && npcs.filter(n => n.type === 'Villain').length > 0 && (
+          <div className="mt-4">
+            <Button
+              onClick={handleImportVillains}
+              className="bg-red-700 hover:bg-red-600"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Importar Vilões como Base SWOT
+            </Button>
+            <p className="text-xs text-slate-500 mt-2">
+              Cria sugestão baseada nos {npcs.filter(n => n.type === 'Villain').length} vilão(ões)
+            </p>
+          </div>
+        )}
+        {suggestedSwot && (
+          <div className="mt-6 text-left max-w-2xl mx-auto space-y-4">
+            <p className="text-yellow-400 text-sm font-semibold text-center">Sugestão gerada — revise e salve</p>
+            <div className="p-4 bg-slate-900/80 border border-red-500/30 rounded-lg space-y-3">
+              <p className="text-white font-bold">{suggestedSwot.name}</p>
+              {suggestedSwot.backstory && <p className="text-slate-400 text-sm">{suggestedSwot.backstory}</p>}
+            </div>
+            <Button
+              onClick={async () => {
+                await Campaign.update(campaignId, {
+                  content_json: { ...campaign.content_json, antagonist_swot: suggestedSwot }
+                });
+                if (onRefresh) onRefresh();
+                setSuggestedSwot(null);
+              }}
+              className="w-full bg-red-700 hover:bg-red-600"
+            >
+              Salvar esta Sugestão
+            </Button>
+          </div>
+        )}
       </div>
     );
   }

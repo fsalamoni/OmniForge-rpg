@@ -584,3 +584,24 @@ export const SeedData = {
     return results;
   }
 };
+
+// ─── CampaignStorage ────────────────────────────────────────────────────────
+export const CampaignStorage = {
+  async uploadMapImage(campaignId, mapId, file) {
+    const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+    const { storage } = await import('./config');
+    const path = `campaigns/${campaignId}/maps/${mapId}`;
+    const storageRef = ref(storage, path);
+    const task = uploadBytesResumable(storageRef, file);
+    return new Promise((resolve, reject) => {
+      task.on('state_changed',
+        null,
+        reject,
+        async () => {
+          const url = await getDownloadURL(task.snapshot.ref);
+          resolve(url);
+        }
+      );
+    });
+  }
+};
