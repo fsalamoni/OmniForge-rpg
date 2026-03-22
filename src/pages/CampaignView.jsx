@@ -25,7 +25,12 @@ import {
   TrendingUp,
   BarChart3,
   Plus,
-  Pencil
+  Pencil,
+  Map,
+  Swords,
+  Shield,
+  Star,
+  Clock
 } from 'lucide-react';
 
 // Campaign view sub-components
@@ -243,15 +248,16 @@ export default function CampaignView() {
 
         {/* ── TAB: DESCRIÇÃO GERAL ── */}
         <TabsContent value="description" className="space-y-6">
-          {content.adventure_summary && isOwner && (
+          {content.campaign_description_data ? (
+            <CampaignDescriptionView data={content.campaign_description_data} />
+          ) : content.adventure_summary && isOwner ? (
             <EditableSection
               title="Resumo da Aventura"
               content={content.adventure_summary}
               onSave={handleUpdateSummary}
               icon={BookOpen}
             />
-          )}
-          {content.adventure_summary && !isOwner && (
+          ) : content.adventure_summary && !isOwner ? (
             <div className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl">
               <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
                 <BookOpen className="w-6 h-6 text-purple-400" />
@@ -259,8 +265,7 @@ export default function CampaignView() {
               </h2>
               <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{content.adventure_summary}</p>
             </div>
-          )}
-          {!content.adventure_summary && (
+          ) : (
             <div className="text-center py-12 bg-slate-900/30 border border-slate-800 rounded-2xl">
               <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-4" />
               <p className="text-slate-400">Nenhuma descrição disponível. Gere a campanha primeiro.</p>
@@ -695,3 +700,131 @@ export default function CampaignView() {
     </div>
   );
 }
+
+// ── Structured Campaign Description View ──────────────────────────────────────
+function DescriptionSection({ icon: Icon, title, iconClass, children }) {
+  return (
+    <div className="p-6 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl">
+      <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+        <Icon className={`w-5 h-5 ${iconClass}`} />
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+function SubField({ label, value }) {
+  if (!value) return null;
+  return (
+    <div className="mb-3">
+      <span className="text-sm font-semibold text-purple-300">{label}</span>
+      <p className="text-slate-300 leading-relaxed mt-1">{value}</p>
+    </div>
+  );
+}
+
+function CampaignDescriptionView({ data }) {
+  if (!data) return null;
+  const { premissa, contexto_mundo, conflito_central, forcas_poder, aspectos_campanha, relogio_apocalipse } = data;
+
+  return (
+    <div className="space-y-6">
+      {/* 1. PREMISSA */}
+      {premissa && (
+        <DescriptionSection icon={Sparkles} title="1. Premissa" iconClass="text-purple-400">
+          <SubField label="Pitch" value={premissa.pitch} />
+          <SubField label='O "E Se?"' value={premissa.e_se} />
+          <SubField label="Promessa de Experiência" value={premissa.promessa_experiencia} />
+          <SubField label="Função dos Personagens" value={premissa.funcao_personagens} />
+          <SubField label="Proposta de Jogo" value={premissa.proposta_jogo} />
+          <SubField label="Escala" value={premissa.escala} />
+        </DescriptionSection>
+      )}
+
+      {/* 2. CONTEXTO DO MUNDO */}
+      {contexto_mundo && (
+        <DescriptionSection icon={Map} title="2. Contexto do Mundo" iconClass="text-blue-400">
+          <SubField label="Geografia e Atmosfera" value={contexto_mundo.geografia_atmosfera} />
+          <SubField label="Paleta Sensorial" value={contexto_mundo.paleta_sensorial} />
+          <SubField label="Sociedade e Cultura" value={contexto_mundo.sociedade_cultura} />
+          <SubField label="História Recente" value={contexto_mundo.historia_recente} />
+          <SubField label="Letalidade e Moralidade" value={contexto_mundo.letalidade_moralidade} />
+        </DescriptionSection>
+      )}
+
+      {/* 3. CONFLITO CENTRAL */}
+      {conflito_central && (
+        <DescriptionSection icon={Swords} title="3. Conflito Central" iconClass="text-red-400">
+          <SubField label="Origem do Problema" value={conflito_central.origem_problema} />
+          <SubField label="Facções Envolvidas" value={conflito_central.faccoes_envolvidas} />
+          <SubField label="O Que Está em Jogo" value={conflito_central.stakes} />
+          <SubField label="Tensão Política/Social" value={conflito_central.tensao_politica} />
+          <SubField label="Inimigo Oculto vs. Visível" value={conflito_central.inimigos} />
+        </DescriptionSection>
+      )}
+
+      {/* 4. FORÇAS DE PODER */}
+      {Array.isArray(forcas_poder) && forcas_poder.length > 0 && (
+        <DescriptionSection icon={Shield} title="4. Forças de Poder" iconClass="text-amber-400">
+          <div className="grid md:grid-cols-2 gap-4">
+            {forcas_poder.map((f, i) => (
+              <div key={i} className="p-4 bg-amber-900/10 border border-amber-900/20 rounded-xl">
+                <h3 className="text-amber-300 font-bold mb-2">{f.nome}</h3>
+                <p className="text-slate-400 text-sm mb-1">
+                  <span className="text-amber-400 font-semibold">Desejo:</span> {f.desejo}
+                </p>
+                <p className="text-slate-400 text-sm mb-1">
+                  <span className="text-amber-400 font-semibold">Recurso:</span> {f.recurso}
+                </p>
+                <p className="text-slate-400 text-sm">
+                  <span className="text-amber-400 font-semibold">Carência:</span> {f.carencia}
+                </p>
+              </div>
+            ))}
+          </div>
+        </DescriptionSection>
+      )}
+
+      {/* 5. ASPECTOS DA CAMPANHA */}
+      {Array.isArray(aspectos_campanha) && aspectos_campanha.length > 0 && (
+        <DescriptionSection icon={Star} title="5. Aspectos da Campanha" iconClass="text-green-400">
+          <ul className="space-y-2">
+            {aspectos_campanha.map((aspecto, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-green-400 font-bold mt-0.5">{i + 1}.</span>
+                <span className="text-slate-300">{aspecto}</span>
+              </li>
+            ))}
+          </ul>
+        </DescriptionSection>
+      )}
+
+      {/* 6. RELÓGIO DO APOCALIPSE */}
+      {Array.isArray(relogio_apocalipse) && relogio_apocalipse.length > 0 && (
+        <DescriptionSection icon={Clock} title="6. Relógio do Apocalipse" iconClass="text-rose-400">
+          <div className="space-y-3">
+            {relogio_apocalipse.map((r, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 bg-rose-900/10 border border-rose-900/20 rounded-lg">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-rose-900/30 border border-rose-500/40 flex items-center justify-center text-rose-400 font-bold text-sm">
+                  {i + 1}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-rose-300 font-semibold">{r.estagio}</span>
+                    {r.tempo_estimado && (
+                      <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{r.tempo_estimado}</span>
+                    )}
+                  </div>
+                  <p className="text-slate-300 text-sm leading-relaxed">{r.descricao}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DescriptionSection>
+      )}
+    </div>
+  );
+}
+
+

@@ -342,9 +342,9 @@ Responda em JSON: {"answer": "intensidade e stakes aqui"}`,
   // ─ Gerador de Campanha Completa ───────────────────────────────────────────
   [AGENT_IDS.CAMPAIGN_GENERATOR]: {
     name: 'Gerador de Campanha Completa',
-    description: 'Gera a campanha completa (resumo, ganchos, NPCs, encontros) a partir das respostas 5W2H.',
-    systemPrompt: `Você é um mestre de RPG de alto nível, especialista em criar campanhas completas, balanceadas e inesquecíveis para qualquer sistema de RPG de mesa. Você conhece profundamente os sistemas mais populares (D&D, Pathfinder, Call of Cthulhu, Vampire, Ordem Paranormal, Tormenta20, etc.) e sabe criar conteúdo adaptado a cada um. Responda SEMPRE em JSON válido e estruturado, sem nenhum texto fora do JSON.`,
-    promptTemplate: `Crie uma campanha de RPG COMPLETA com base nestas informações:
+    description: 'Gera a campanha completa (descrição estruturada, ganchos, NPCs, encontros) a partir das respostas 5W2H.',
+    systemPrompt: `Você é um designer de campanhas profissional de RPG, especialista em criar campanhas completas, balanceadas e inesquecíveis para qualquer sistema. Você domina sistemas como D&D, Pathfinder, Call of Cthulhu, Vampire, Ordem Paranormal, Tormenta20 e sabe criar conteúdo adaptado a cada um. Responda SEMPRE em JSON válido e estruturado, sem nenhum texto fora do JSON.`,
+    promptTemplate: `Você é um designer de campanhas profissional de RPG. Crie uma CAMPANHA COMPLETA com base nestas informações. O texto deve ser enciclopédico, mas inspirador. MÍNIMO DE 2500 CARACTERES na descrição.
 
 SISTEMA: {{system}}
 AMBIENTAÇÃO: {{setting}}
@@ -352,44 +352,54 @@ TOM DA CAMPANHA: {{campaign_tone}}
 NÍVEL DE EXPERIÊNCIA DOS JOGADORES: {{experience_level}}
 DURAÇÃO: {{duration}}
 JOGADORES: {{players}}
+CRIATIVIDADE: {{creativity_level}}/5 — {{creativity_instructions}}
 
 RESPOSTAS DO PLANEJAMENTO (5W2H):
 {{answers}}
 
-NÍVEL DE CRIATIVIDADE {{creativity_level}}/5: {{creativity_instructions}}
+Crie em português do Brasil uma campanha completa com TODAS as seções abaixo.
 
-Crie uma campanha completa em português do Brasil com:
-1. Um resumo narrativo envolvente e detalhado (4-6 parágrafos) que reflita o tom {{campaign_tone}}
-2. 3 a 5 ganchos de aventura específicos e interessantes
-3. 3 a 5 NPCs importantes com personalidade definida, adequados ao sistema {{system}}
-4. 3 a 5 encontros balanceados para {{players}} jogadores {{experience_level}} no sistema {{system}}
+SEÇÃO 1 — PREMISSA:
+- pitch: Protagonistas + Ação Central + Antagonista/Obstáculo (2-3 frases)
+- e_se: A pergunta fundamental que altera o status quo
+- promessa_experiencia: O que os jogadores sentirão?
+- funcao_personagens: Quem são e qual seu objetivo
+- proposta_jogo: Gênero refinado e o que farão na maior parte do tempo
+- escala: Escopo da campanha (vila, reino, multiverso?) e nível de progressão
 
-Para os encontros, use as mecânicas específicas do sistema {{system}} — criaturas, nomes, valores de dificuldade (CR, Challenge Rating, Perigo, etc.) no vocabulário correto do sistema.
-Para os NPCs, crie personagens tridimensionais com motivações claras alinhadas ao tom {{campaign_tone}}.
-Calibre a complexidade total para jogadores {{experience_level}}.
+SEÇÃO 2 — CONTEXTO DO MUNDO:
+- geografia_atmosfera: Regiões de interesse, clima, arquitetura
+- paleta_sensorial: Cores, cheiros e sons predominantes
+- sociedade_cultura: Como vivem, o que é crime, o que é sagrado
+- historia_recente: Últimos 50 anos que moldaram o presente
+- letalidade_moralidade: Cinematográfica/Maniqueísta ou Crua/Cinza
 
-Responda em JSON com a seguinte estrutura EXATA:
-{
-  "adventure_summary": "Resumo narrativo completo da aventura com 4-6 parágrafos",
-  "plot_hooks": ["gancho 1", "gancho 2", "gancho 3"],
-  "npcs": [
-    {
-      "name": "Nome do NPC",
-      "role": "Papel na história (ex: Vilão Principal, Aliado, Informante)",
-      "motivation": "O que motiva este personagem",
-      "description": "Descrição física, personalidade e história breve"
-    }
-  ],
-  "encounters": [
-    {
-      "name": "Nome do encontro",
-      "difficulty": "Fácil|Médio|Difícil|Mortal",
-      "description": "Descrição detalhada do encontro e contexto narrativo",
-      "creatures": [{"name": "Nome da criatura/inimigo", "quantity": 2}],
-      "tactics": "Táticas e comportamento dos inimigos em combate"
-    }
-  ]
-}`,
+SEÇÃO 3 — CONFLITO CENTRAL:
+- origem_problema: O que quebrou o status quo?
+- faccoes_envolvidas: Quem são os grandes players?
+- stakes: Por que isso importa?
+- tensao_politica: Quem oprime quem? Qual escassez?
+- inimigos: Diferença entre ameaça imediata e existencial
+
+SEÇÃO 4 — FORÇAS DE PODER (2 a 4 facções principais):
+Para cada facção: nome, desejo (o que querem desesperadamente), recurso (o que têm em abundância), carencia (o que precisam e não conseguem sozinhos)
+
+SEÇÃO 5 — ASPECTOS DA CAMPANHA (3 a 5 fatos absolutos):
+Características únicas que diferenciam este cenário
+
+SEÇÃO 6 — RELÓGIO DO APOCALIPSE (3 a 5 estágios):
+Cronograma do que acontece se os heróis não agirem — com estagio (nome), descricao e tempo_estimado
+
+SEÇÃO 7 — GANCHOS (3 a 5):
+Ganchos de aventura específicos e interessantes para engajar os jogadores
+
+SEÇÃO 8 — NPCs (3 a 5):
+Personagens importantes com name, role, motivation, description (adequados ao sistema {{system}})
+
+SEÇÃO 9 — ENCONTROS (3 a 5):
+Encontros balanceados para {{players}} jogadores {{experience_level}} no sistema {{system}}, com name, difficulty (Fácil|Médio|Difícil|Mortal), description, creatures (name+quantity), tactics
+
+Use as respostas 5W2H como base fundamental. Seja específico para {{system}} em {{setting}}.`,
     variables: [
       { key: 'system', description: 'Sistema de RPG' },
       { key: 'setting', description: 'Ambientação' },

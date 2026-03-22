@@ -463,7 +463,75 @@ export default function Generator() {
         responseSchema: {
           type: 'object',
           properties: {
-            adventure_summary: { type: 'string' },
+            premissa: {
+              type: 'object',
+              properties: {
+                pitch: { type: 'string' },
+                e_se: { type: 'string' },
+                promessa_experiencia: { type: 'string' },
+                funcao_personagens: { type: 'string' },
+                proposta_jogo: { type: 'string' },
+                escala: { type: 'string' }
+              },
+              required: ['pitch', 'e_se', 'promessa_experiencia', 'funcao_personagens', 'proposta_jogo', 'escala']
+            },
+            contexto_mundo: {
+              type: 'object',
+              properties: {
+                geografia_atmosfera: { type: 'string' },
+                paleta_sensorial: { type: 'string' },
+                sociedade_cultura: { type: 'string' },
+                historia_recente: { type: 'string' },
+                letalidade_moralidade: { type: 'string' }
+              },
+              required: ['geografia_atmosfera', 'paleta_sensorial', 'sociedade_cultura', 'historia_recente', 'letalidade_moralidade']
+            },
+            conflito_central: {
+              type: 'object',
+              properties: {
+                origem_problema: { type: 'string' },
+                faccoes_envolvidas: { type: 'string' },
+                stakes: { type: 'string' },
+                tensao_politica: { type: 'string' },
+                inimigos: { type: 'string' }
+              },
+              required: ['origem_problema', 'faccoes_envolvidas', 'stakes', 'tensao_politica', 'inimigos']
+            },
+            forcas_poder: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  nome: { type: 'string' },
+                  desejo: { type: 'string' },
+                  recurso: { type: 'string' },
+                  carencia: { type: 'string' }
+                },
+                required: ['nome', 'desejo', 'recurso', 'carencia']
+              },
+              minItems: 2,
+              maxItems: 4
+            },
+            aspectos_campanha: {
+              type: 'array',
+              items: { type: 'string' },
+              minItems: 3,
+              maxItems: 5
+            },
+            relogio_apocalipse: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  estagio: { type: 'string' },
+                  descricao: { type: 'string' },
+                  tempo_estimado: { type: 'string' }
+                },
+                required: ['estagio', 'descricao', 'tempo_estimado']
+              },
+              minItems: 3,
+              maxItems: 5
+            },
             plot_hooks: { type: 'array', items: { type: 'string' } },
             npcs: {
               type: 'array',
@@ -502,15 +570,26 @@ export default function Generator() {
               }
             }
           },
-          required: ['adventure_summary', 'plot_hooks', 'npcs', 'encounters']
+          required: ['premissa', 'contexto_mundo', 'conflito_central', 'forcas_poder', 'aspectos_campanha', 'relogio_apocalipse', 'plot_hooks', 'npcs', 'encounters']
         },
         userAIConfig: userProfile.aiConfig,
         systemPrompt: genConfig.systemPrompt,
         temperature: genConfig.temperature
       });
 
+      // Build structured campaign description data
+      const campaignDescriptionData = {
+        premissa: result.premissa || {},
+        contexto_mundo: result.contexto_mundo || {},
+        conflito_central: result.conflito_central || {},
+        forcas_poder: Array.isArray(result.forcas_poder) ? result.forcas_poder : [],
+        aspectos_campanha: Array.isArray(result.aspectos_campanha) ? result.aspectos_campanha : [],
+        relogio_apocalipse: Array.isArray(result.relogio_apocalipse) ? result.relogio_apocalipse : []
+      };
+
       const normalizedResult = {
-        adventure_summary: result.adventure_summary || 'Sem resumo disponível',
+        campaign_description_data: campaignDescriptionData,
+        adventure_summary: result.premissa?.pitch || 'Sem resumo disponível',
         plot_hooks: Array.isArray(result.plot_hooks) ? result.plot_hooks : [],
         npcs: Array.isArray(result.npcs) ? result.npcs : [],
         encounters: Array.isArray(result.encounters) ? result.encounters : []
