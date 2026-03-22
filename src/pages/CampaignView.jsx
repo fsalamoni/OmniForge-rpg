@@ -539,29 +539,16 @@ export default function CampaignView() {
         </TabsContent>
 
         {/* ── TAB: PROGRESSÃO ── */}
-        <TabsContent value="progression" className="space-y-6">
-          <Tabs defaultValue="session" className="space-y-4">
-            <TabsList className="bg-slate-900/30 border border-slate-800 p-1">
-              <TabsTrigger value="session" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
-                Rastreador de Sessão
-              </TabsTrigger>
-              <TabsTrigger value="world" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
-                Estado do Mundo
-              </TabsTrigger>
-              <TabsTrigger value="rewards" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400">
-                Recompensas
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="session">
+        <TabsContent value="progression">
+          <div className="space-y-8">
+            <WorldStateDashboard campaignId={campaignId} isOwner={isOwner} />
+            <div className="border-t border-slate-800 pt-8">
               <SessionTracker campaignId={campaignId} isOwner={isOwner} />
-            </TabsContent>
-            <TabsContent value="world">
-              <WorldStateDashboard campaignId={campaignId} isOwner={isOwner} />
-            </TabsContent>
-            <TabsContent value="rewards">
+            </div>
+            <div className="border-t border-slate-800 pt-8">
               <RewardsDashboard campaignId={campaignId} isOwner={isOwner} />
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </TabsContent>
 
         {/* ── TAB: GESTÃO ── */}

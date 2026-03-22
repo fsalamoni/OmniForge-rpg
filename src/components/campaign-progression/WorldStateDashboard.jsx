@@ -71,6 +71,8 @@ export default function WorldStateDashboard({ campaignId, isOwner }) {
 
   const getAffectedArcs = () => {
     const affected = [];
+    const wbs = campaign?.content_json?.wbs;
+    if (!wbs) return [];
     sessionLogs.forEach(log => {
       if (log.consequences_json?.wbs_impact) {
         affected.push({
@@ -115,7 +117,19 @@ ${stakeholders.map(s => `• ${s.name} (${s.role}): Interesse ${s.interest}/10, 
 ARCOS NARRATIVOS ATIVOS:
 ${currentArcs.map((arc, i) => `${i + 1}. ${arc.name}: ${arc.description}`).join('\n')}
 
-TAREFA: Gere UM EVENTO EMERGENTE que seja consequência natural das decisões recentes, envolva pelo menos 1 stakeholder, crie um novo desafio ou oportunidade e afete um dos arcos narrativos.`;
+════════════════════════════════════════════════════════════════
+TAREFA: GERAR EVENTO EMERGENTE
+════════════════════════════════════════════════════════════════
+
+Baseado no estado atual da campanha, gere UM EVENTO EMERGENTE que:
+
+1. Seja uma CONSEQUÊNCIA NATURAL das decisões recentes dos jogadores
+2. Envolva pelo menos 1 stakeholder cujo interesse mudou significativamente
+3. Crie um novo desafio ou oportunidade inesperada
+4. Afete um dos arcos narrativos de forma interessante
+5. Mantenha o tom e ambientação da campanha
+
+Seja criativo, dramático e conectado à história estabelecida!`;
 
       const result = await invokeLLM({
         prompt,
@@ -134,6 +148,10 @@ TAREFA: Gere UM EVENTO EMERGENTE que seja consequência natural das decisões re
           required: ['event_title', 'event_description', 'trigger', 'immediate_consequences', 'arc_impact']
         }
       });
+
+      if (!result || !result.event_title) {
+        throw new Error('IA não retornou um evento válido');
+      }
 
       const latestSession = sessionLogs.length > 0
         ? Math.max(...sessionLogs.map(l => l.session_number || 0))
