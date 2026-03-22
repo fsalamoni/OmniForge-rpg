@@ -1,19 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, UserPlus } from 'lucide-react';
+import { Campaign } from '@/firebase/db';
 
-export default function StakeholdersMatrix({ stakeholders }) {
+export default function StakeholdersMatrix({ stakeholders, npcs = [], isOwner = false, campaignId, campaign, onRefresh }) {
   const [selectedStakeholder, setSelectedStakeholder] = useState(null);
+  const [importing, setImporting] = useState(false);
 
-  if (!stakeholders || stakeholders.length === 0) {
-    return (
-      <div className="text-center py-8 text-slate-400">
-        <Users className="w-12 h-12 mx-auto mb-3 text-slate-600" />
-        <p>Nenhum stakeholder disponível</p>
-      </div>
-    );
-  }
+  const handleImportNpcs = async () => {
+    if (!npcs || npcs.length === 0) return;
+    setImporting(true);
+    try {
+      const existing = stakeholders || [];
+      const existingNames = new Set(existing.map(s => s.name?.toLowerCase()));
+      const newStakeholders = npcs
+        .filter(npc => !existingNames.has(npc.name?.toLowerCase()))
+        .map(npc => ({
+          name: npc.name,
+          role: npc.role || npc.type,
+          archetype: npc.type === 'Villain' ? 'Obstrutor' :
+                     npc.type === 'Ally' ? 'Facilitador' :
+                     npc.type === 'Monster' ? 'Obstrutor' : 'Oportunista',
+          description: npc.description || '',
+          motivation: npc.motivation || '',
+          long_term_goal: npc.stats_json?.long_term_ambition || '',
+          // interest: neutral (0 = neither for nor against); power: mid-range (5 out of 10)
+          interest: npc.stats_json?.interest || 0,
+          power: npc.stats_json?.power || 5,
+        }));
+      if (newStakeholders.length === 0) return;
+      const merged = [...existing, ...newStakeholders];
+      await Campaign.update(campaignId, {
+        content_json: { ...campaign.content_json, stakeholders: merged }
+      });
+      if (onRefresh) onRefresh();
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const archetypeColors = {
     'Facilitador': 'bg-green-600/20 text-green-300 border-green-500/30',
@@ -22,8 +48,48 @@ export default function StakeholdersMatrix({ stakeholders }) {
     'Recurso Chave': 'bg-blue-600/20 text-blue-300 border-blue-500/30'
   };
 
+  const importableNpcsCount = useMemo(() => {
+    const existingNames = new Set((stakeholders || []).map(s => s.name?.toLowerCase()));
+    return (npcs || []).filter(npc => !existingNames.has(npc.name?.toLowerCase())).length;
+  }, [npcs, stakeholders]);
+
+  if (!stakeholders || stakeholders.length === 0) {
+    return (
+      <div className="text-center py-8 text-slate-400">
+        <Users className="w-12 h-12 mx-auto mb-3 text-slate-600" />
+        <p>Nenhum stakeholder disponível</p>
+        {isOwner && importableNpcsCount > 0 && (
+          <div className="mt-4">
+            <Button
+              onClick={handleImportNpcs}
+              disabled={importing}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Importar NPCs como Stakeholders ({importableNpcsCount})
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {isOwner && importableNpcsCount > 0 && (
+        <div className="flex justify-end">
+          <Button
+            onClick={handleImportNpcs}
+            disabled={importing}
+            variant="outline"
+            className="border-purple-500/30 text-purple-300 hover:bg-purple-900/20"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Importar NPCs como Stakeholders ({importableNpcsCount})
+          </Button>
+        </div>
+      )}
+
       <Card className="bg-gradient-to-br from-purple-900/30 to-slate-900/30 border-purple-500/30">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
@@ -55,8 +121,6 @@ export default function StakeholdersMatrix({ stakeholders }) {
             {stakeholders.map((s, i) => {
               const power = s.power || 5;
               const interest = s.interest || 0;
-              // power: 1-10 → y: 90%-10% (higher = top)
-              // interest: -10 to 10 → x: 5%-95%
               const x = ((interest + 10) / 20) * 90 + 5;
               const y = 100 - ((power / 10) * 90) - 5;
 

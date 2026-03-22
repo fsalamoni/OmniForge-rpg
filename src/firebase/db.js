@@ -14,7 +14,8 @@ import {
   increment,
   limit
 } from 'firebase/firestore';
-import { db } from './config';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from './config';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -582,5 +583,29 @@ export const SeedData = {
     }
 
     return results;
+  }
+};
+
+// ─── CampaignStorage ────────────────────────────────────────────────────────
+export const CampaignStorage = {
+  async uploadMapImage(campaignId, mapId, file, onProgress) {
+    const path = `campaigns/${campaignId}/maps/${mapId}`;
+    const storageRef = ref(storage, path);
+    const task = uploadBytesResumable(storageRef, file);
+    return new Promise((resolve, reject) => {
+      task.on('state_changed',
+        (snapshot) => {
+          if (onProgress) {
+            const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            onProgress(pct);
+          }
+        },
+        reject,
+        async () => {
+          const url = await getDownloadURL(task.snapshot.ref);
+          resolve(url);
+        }
+      );
+    });
   }
 };
