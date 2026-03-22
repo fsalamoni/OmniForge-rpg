@@ -8,7 +8,6 @@ import {
   BookOpen,
   Target,
   Users,
-  MessageSquare,
   Search,
   Swords,
   Gift,
@@ -45,46 +44,6 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
   const toggleAct = (arcIndex, actIndex) => {
     const key = `${arcIndex}-${actIndex}`;
     setExpandedActs(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const handleToggleActCompletion = async (arcIndex, actIndex) => {
-    if (!isOwner || !campaignId) return;
-    const updatedArcs = arcs.map((arc, i) => {
-      if (i !== arcIndex) return arc;
-      return {
-        ...arc,
-        acts: arc.acts.map((act, j) =>
-          j !== actIndex ? act : { ...act, completed: !act.completed }
-        )
-      };
-    });
-    await Campaign.update(campaignId, {
-      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
-    });
-    if (onRefresh) onRefresh();
-  };
-
-  const handleToggleSceneCompletion = async (arcIndex, actIndex, sceneIndex) => {
-    if (!isOwner || !campaignId) return;
-    const updatedArcs = arcs.map((arc, i) => {
-      if (i !== arcIndex) return arc;
-      return {
-        ...arc,
-        acts: arc.acts.map((act, j) => {
-          if (j !== actIndex) return act;
-          return {
-            ...act,
-            scenes: act.scenes.map((scene, k) =>
-              k !== sceneIndex ? scene : { ...scene, completed: !scene.completed }
-            )
-          };
-        })
-      };
-    });
-    await Campaign.update(campaignId, {
-      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
-    });
-    if (onRefresh) onRefresh();
   };
 
   const handleSaveArc = async (arcIndex, updatedArc) => {

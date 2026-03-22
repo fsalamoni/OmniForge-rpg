@@ -7,7 +7,6 @@ import { invokeLLM } from '@/lib/aiClient';
 import {
   AGENT_IDS,
   QUESTION_KEY_TO_AGENT,
-  DEFAULT_AGENTS,
   buildPrompt,
   getAgentConfig
 } from '@/lib/aiAgents';
