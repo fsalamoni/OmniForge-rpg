@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -242,12 +242,15 @@ export default function NpcsByArcView({
     return seen.size;
   };
 
-  const unassignedNpcs = filteredNpcs.filter(npc => {
+  const unassignedNpcs = useMemo(() => filteredNpcs.filter(npc => {
     const assocs = npc.arc_associations || [];
     return assocs.length === 0;
-  });
+  }), [filteredNpcs]);
 
-  const cardProps = { isOwner, campaignId, campaignContext, systemRpg, onUpdate, arcs };
+  const cardProps = useMemo(
+    () => ({ isOwner, campaignId, campaignContext, systemRpg, onUpdate, arcs }),
+    [isOwner, campaignId, campaignContext, systemRpg, onUpdate, arcs]
+  );
 
   if (arcs.length === 0 && filteredNpcs.length === 0) {
     return (

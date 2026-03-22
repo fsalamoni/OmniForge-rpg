@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,10 +48,10 @@ export default function StakeholdersMatrix({ stakeholders, npcs = [], isOwner = 
     'Recurso Chave': 'bg-blue-600/20 text-blue-300 border-blue-500/30'
   };
 
-  const importableNpcsCount = npcs.filter(npc => {
+  const importableNpcsCount = useMemo(() => {
     const existingNames = new Set((stakeholders || []).map(s => s.name?.toLowerCase()));
-    return !existingNames.has(npc.name?.toLowerCase());
-  }).length;
+    return (npcs || []).filter(npc => !existingNames.has(npc.name?.toLowerCase())).length;
+  }, [npcs, stakeholders]);
 
   if (!stakeholders || stakeholders.length === 0) {
     return (

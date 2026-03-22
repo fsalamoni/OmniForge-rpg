@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -112,7 +112,7 @@ function MapCanvas({ map, isOwner, onCanvasClick, onRemoveMarker }) {
 }
 
 export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, initialMarkers, content }) {
-  const initMaps = () => {
+  const [maps, setMaps] = useState(() => {
     if (content?.maps && content.maps.length > 0) return content.maps;
     return [{
       id: 'default',
@@ -120,12 +120,10 @@ export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, in
       imageUrl: '',
       markers: initialMarkers || []
     }];
-  };
-
-  const [maps, setMaps] = useState(initMaps);
+  });
   const [activeMapId, setActiveMapId] = useState(() => {
-    const m = initMaps();
-    return m[0]?.id || 'default';
+    if (content?.maps && content.maps.length > 0) return content.maps[0]?.id || 'default';
+    return 'default';
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -214,7 +212,10 @@ export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, in
       await updateActiveMap(m => ({ ...m, imageUrl: url }));
     } catch (err) {
       console.error('Erro ao fazer upload da imagem:', err);
-      alert('Erro ao fazer upload. Tente novamente.');
+      const msg = err?.code === 'storage/unauthorized'
+        ? 'Sem permissão para enviar imagens. Verifique as regras do Firebase Storage.'
+        : err?.message || 'Erro desconhecido';
+      alert(`Erro ao fazer upload: ${msg}`);
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -228,29 +229,32 @@ export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, in
   };
 
   // Auto-markers from WBS and stakeholders (read-only, not persisted)
-  const autoMarkers = [];
-  if (wbs?.narrative_arcs) {
-    wbs.narrative_arcs.forEach((arc, arcIndex) => {
-      (arc.scenes || []).forEach((scene, sceneIndex) => {
-        if (scene.name) {
-          autoMarkers.push({
-            name: scene.name, type: 'scene', arc: arc.name,
-            x: 20 + (arcIndex * 25), y: 20 + (sceneIndex * 15),
-            notes: scene.process || ''
-          });
-        }
+  const autoMarkers = useMemo(() => {
+    const result = [];
+    if (wbs?.narrative_arcs) {
+      wbs.narrative_arcs.forEach((arc, arcIndex) => {
+        (arc.scenes || []).forEach((scene, sceneIndex) => {
+          if (scene.name) {
+            result.push({
+              name: scene.name, type: 'scene', arc: arc.name,
+              x: 20 + (arcIndex * 25), y: 20 + (sceneIndex * 15),
+              notes: scene.process || ''
+            });
+          }
+        });
       });
-    });
-  }
-  if (stakeholders) {
-    stakeholders.forEach((s, i) => {
-      autoMarkers.push({
-        name: s.name, type: 'stakeholder', role: s.role || s.title,
-        x: 30 + (i * 12), y: 60 + (i * 8),
-        notes: s.description || ''
+    }
+    if (stakeholders) {
+      stakeholders.forEach((s, i) => {
+        result.push({
+          name: s.name, type: 'stakeholder', role: s.role || s.title,
+          x: 30 + (i * 12), y: 60 + (i * 8),
+          notes: s.description || ''
+        });
       });
-    });
-  }
+    }
+    return result;
+  }, [wbs, stakeholders]);
 
   const displayMap = activeMap
     ? { ...activeMap, markers: [...autoMarkers, ...(activeMap.markers || [])] }
