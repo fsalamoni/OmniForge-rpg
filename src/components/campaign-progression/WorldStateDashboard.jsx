@@ -129,7 +129,18 @@ Baseado no estado atual da campanha, gere UM EVENTO EMERGENTE que:
 4. Afete um dos arcos narrativos de forma interessante
 5. Mantenha o tom e ambientação da campanha
 
-Seja criativo, dramático e conectado à história estabelecida!`;
+Seja criativo, dramático e conectado à história estabelecida!
+
+Responda em JSON com exatamente esta estrutura:
+{
+  "event_title": "título curto e impactante do evento",
+  "event_description": "descrição detalhada do que está acontecendo",
+  "trigger": "o que desencadeou este evento (decisão/consequência anterior)",
+  "npcs_involved": ["nome do NPC 1", "nome do NPC 2"],
+  "immediate_consequences": "o que acontece imediatamente após o evento",
+  "player_opportunities": "quais oportunidades ou escolhas os jogadores têm",
+  "arc_impact": "como este evento afeta os arcos narrativos ativos"
+}`;
 
       const result = await invokeLLM({
         prompt,
