@@ -27,7 +27,9 @@ export const AGENT_IDS = {
   NPC_INTERACTION:        'npc-interaction',
   CONSEQUENCE_GENERATOR:  'consequence-generator',
   AI_EXPANDER:            'ai-expander',
-  MANAGEMENT_GENERATOR:   'management-generator'
+  MANAGEMENT_GENERATOR:   'management-generator',
+  CREATURE_GENERATOR:     'creature-generator',
+  SESSION_PLANNER:        'session-planner'
 };
 
 // Mapeia chave da pergunta → ID do agente
@@ -69,6 +71,8 @@ export const DEFAULT_AGENTS = {
 
 Sistema: {{system}}
 Ambientação: {{setting}}
+Tom da Campanha: {{campaign_tone}}
+Nível de Experiência dos Jogadores: {{experience_level}}
 Duração prevista: {{duration}}
 Número de jogadores: {{players}}
 Título da campanha: "{{title}}"
@@ -80,6 +84,7 @@ Contexto já definido:
 
 Crie um CONFLITO PRINCIPAL que:
 - Seja adequado ao sistema {{system}} e à ambientação {{setting}}
+- Reflita o tom {{campaign_tone}} e seja acessível para jogadores {{experience_level}}
 - Seja escalável para {{players}} jogadores
 - Tenha stakes claros (o que pode ser perdido/ganho)
 - Seja original e memorável
@@ -89,6 +94,8 @@ Responda em JSON: {"answer": "descrição do conflito aqui"}`,
     variables: [
       { key: 'system', description: 'Sistema de RPG (ex: D&D 5e)' },
       { key: 'setting', description: 'Ambientação (ex: Fantasia Medieval)' },
+      { key: 'campaign_tone', description: 'Tom(s) da campanha (ex: Épico, Horror)' },
+      { key: 'experience_level', description: 'Nível de experiência dos jogadores' },
       { key: 'duration', description: 'Duração da campanha (ex: One-shot)' },
       { key: 'players', description: 'Número de jogadores' },
       { key: 'title', description: 'Título da campanha' },
@@ -106,6 +113,8 @@ Responda em JSON: {"answer": "descrição do conflito aqui"}`,
 
 Sistema: {{system}}
 Ambientação: {{setting}}
+Tom da Campanha: {{campaign_tone}}
+Nível de Experiência dos Jogadores: {{experience_level}}
 Duração: {{duration}}
 Jogadores: {{players}}
 Título: "{{title}}"
@@ -116,14 +125,16 @@ Contexto já definido:
 Crie uma MOTIVAÇÃO que:
 - Seja compreensível (até mesmo simpática em certa medida)
 - Revele a lógica interna do antagonista
-- Crie conflito moral interessante
-- Seja coerente com a ambientação {{setting}}
+- Crie conflito moral adequado ao tom {{campaign_tone}}
+- Seja coerente com a ambientação {{setting}} e sistema {{system}}
 - Tenha entre 2 e 4 frases
 
 Responda em JSON: {"answer": "motivação dos antagonistas aqui"}`,
     variables: [
       { key: 'system', description: 'Sistema de RPG' },
       { key: 'setting', description: 'Ambientação' },
+      { key: 'campaign_tone', description: 'Tom(s) da campanha' },
+      { key: 'experience_level', description: 'Nível de experiência dos jogadores' },
       { key: 'duration', description: 'Duração' },
       { key: 'players', description: 'Número de jogadores' },
       { key: 'title', description: 'Título' },
@@ -141,6 +152,8 @@ Responda em JSON: {"answer": "motivação dos antagonistas aqui"}`,
 
 Sistema: {{system}}
 Ambientação: {{setting}}
+Tom da Campanha: {{campaign_tone}}
+Nível de Experiência dos Jogadores: {{experience_level}}
 Duração: {{duration}}
 Jogadores: {{players}}
 Título: "{{title}}"
@@ -149,16 +162,18 @@ Contexto já definido:
 {{previous_answers}}
 
 Descreva uma LOCALIZAÇÃO que:
-- Se encaixe perfeitamente na ambientação {{setting}}
+- Se encaixe perfeitamente na ambientação {{setting}} e sistema {{system}}
+- Transmita o tom {{campaign_tone}} através de sua atmosfera e detalhes sensoriais
 - Tenha atmosfera e identidade própria
 - Ofereça possibilidades de exploração e interação
-- Situe o tom da aventura (perigoso, misterioso, civilizado, etc.)
 - Tenha entre 2 e 4 frases descritivas e evocativas
 
 Responda em JSON: {"answer": "descrição do local de início aqui"}`,
     variables: [
       { key: 'system', description: 'Sistema de RPG' },
       { key: 'setting', description: 'Ambientação' },
+      { key: 'campaign_tone', description: 'Tom(s) da campanha' },
+      { key: 'experience_level', description: 'Nível de experiência dos jogadores' },
       { key: 'duration', description: 'Duração' },
       { key: 'players', description: 'Número de jogadores' },
       { key: 'title', description: 'Título' },
@@ -176,6 +191,8 @@ Responda em JSON: {"answer": "descrição do local de início aqui"}`,
 
 Sistema: {{system}}
 Ambientação: {{setting}}
+Tom da Campanha: {{campaign_tone}}
+Nível de Experiência dos Jogadores: {{experience_level}}
 Duração: {{duration}}
 Jogadores: {{players}}
 Título: "{{title}}"
@@ -185,7 +202,7 @@ Contexto já definido:
 
 Crie um CONTEXTO TEMPORAL que:
 - Adicione urgência ou significado especial ao momento da aventura
-- Possa envolver eventos históricos, ciclos naturais, crises, festividades ou eras específicas
+- Reforce o tom {{campaign_tone}} (ex: Horror evoca datas sombrias, Épico evoca profecias ancestrais)
 - Seja relevante para o conflito e motivação já estabelecidos
 - Crie sensação de momento único e irrepetível
 - Tenha entre 2 e 3 frases
@@ -194,6 +211,8 @@ Responda em JSON: {"answer": "contexto temporal aqui"}`,
     variables: [
       { key: 'system', description: 'Sistema de RPG' },
       { key: 'setting', description: 'Ambientação' },
+      { key: 'campaign_tone', description: 'Tom(s) da campanha' },
+      { key: 'experience_level', description: 'Nível de experiência dos jogadores' },
       { key: 'duration', description: 'Duração' },
       { key: 'players', description: 'Número de jogadores' },
       { key: 'title', description: 'Título' },
@@ -211,6 +230,8 @@ Responda em JSON: {"answer": "contexto temporal aqui"}`,
 
 Sistema: {{system}}
 Ambientação: {{setting}}
+Tom da Campanha: {{campaign_tone}}
+Nível de Experiência dos Jogadores: {{experience_level}}
 Duração: {{duration}}
 Jogadores: {{players}}
 Título: "{{title}}"
@@ -223,12 +244,15 @@ Crie uma galeria de PERSONAGENS CENTRAIS que inclua:
 - 1-2 aliados potenciais (quem pode ajudar os jogadores)
 - 1 figura neutra ou ambígua (que pode ser aliado ou inimigo)
 
-Para cada personagem, mencione nome e papel brevemente. Seja específico ao sistema {{system}}.
+Para cada personagem, mencione nome e papel brevemente. Adapte ao sistema {{system}} e tom {{campaign_tone}}.
+Se os jogadores forem {{experience_level}}, calibre a complexidade dos personagens adequadamente.
 
 Responda em JSON: {"answer": "descrição dos personagens centrais aqui"}`,
     variables: [
       { key: 'system', description: 'Sistema de RPG' },
       { key: 'setting', description: 'Ambientação' },
+      { key: 'campaign_tone', description: 'Tom(s) da campanha' },
+      { key: 'experience_level', description: 'Nível de experiência dos jogadores' },
       { key: 'duration', description: 'Duração' },
       { key: 'players', description: 'Número de jogadores' },
       { key: 'title', description: 'Título' },
@@ -246,6 +270,8 @@ Responda em JSON: {"answer": "descrição dos personagens centrais aqui"}`,
 
 Sistema: {{system}}
 Ambientação: {{setting}}
+Tom da Campanha: {{campaign_tone}}
+Nível de Experiência dos Jogadores: {{experience_level}}
 Duração: {{duration}}
 Jogadores: {{players}}
 Título: "{{title}}"
@@ -254,9 +280,9 @@ Contexto já definido:
 {{previous_answers}}
 
 Crie um GANCHO DE ENVOLVIMENTO que:
-- Conecte os PJs à situação de forma orgânica e natural
+- Conecte os PJs à situação de forma orgânica e natural no sistema {{system}}
 - Dê motivação clara para os {{players}} jogadores se envolverem
-- Seja adequado a diferentes tipos de personagem (seja inclusivo)
+- Seja coerente com o tom {{campaign_tone}} e acessível para jogadores {{experience_level}}
 - Crie senso de urgência ou curiosidade imediata
 - Tenha entre 2 e 4 frases
 
@@ -264,6 +290,8 @@ Responda em JSON: {"answer": "como os jogadores se envolvem aqui"}`,
     variables: [
       { key: 'system', description: 'Sistema de RPG' },
       { key: 'setting', description: 'Ambientação' },
+      { key: 'campaign_tone', description: 'Tom(s) da campanha' },
+      { key: 'experience_level', description: 'Nível de experiência dos jogadores' },
       { key: 'duration', description: 'Duração' },
       { key: 'players', description: 'Número de jogadores' },
       { key: 'title', description: 'Título' },
@@ -281,6 +309,8 @@ Responda em JSON: {"answer": "como os jogadores se envolvem aqui"}`,
 
 Sistema: {{system}}
 Ambientação: {{setting}}
+Tom da Campanha: {{campaign_tone}}
+Nível de Experiência dos Jogadores: {{experience_level}}
 Duração: {{duration}}
 Jogadores: {{players}}
 Título: "{{title}}"
@@ -289,16 +319,18 @@ Contexto já definido:
 {{previous_answers}}
 
 Defina a INTENSIDADE que inclua:
-- Nível de letalidade (baixo/médio/alto)
-- Complexidade da trama (simples/moderada/complexa com múltiplas facções)
+- Nível de letalidade calibrado para {{experience_level}} no sistema {{system}}
+- Complexidade da trama coerente com o tom {{campaign_tone}}
 - Tipo de desafios predominantes (combate, investigação, social, exploração)
-- Ritmo esperado das sessões
+- Ritmo esperado das sessões para {{players}} jogadores
 - Tenha entre 2 e 4 frases
 
 Responda em JSON: {"answer": "intensidade e stakes aqui"}`,
     variables: [
       { key: 'system', description: 'Sistema de RPG' },
       { key: 'setting', description: 'Ambientação' },
+      { key: 'campaign_tone', description: 'Tom(s) da campanha' },
+      { key: 'experience_level', description: 'Nível de experiência dos jogadores' },
       { key: 'duration', description: 'Duração' },
       { key: 'players', description: 'Número de jogadores' },
       { key: 'title', description: 'Título' },
@@ -316,6 +348,8 @@ Responda em JSON: {"answer": "intensidade e stakes aqui"}`,
 
 SISTEMA: {{system}}
 AMBIENTAÇÃO: {{setting}}
+TOM DA CAMPANHA: {{campaign_tone}}
+NÍVEL DE EXPERIÊNCIA DOS JOGADORES: {{experience_level}}
 DURAÇÃO: {{duration}}
 JOGADORES: {{players}}
 
@@ -325,13 +359,14 @@ RESPOSTAS DO PLANEJAMENTO (5W2H):
 NÍVEL DE CRIATIVIDADE {{creativity_level}}/5: {{creativity_instructions}}
 
 Crie uma campanha completa em português do Brasil com:
-1. Um resumo narrativo envolvente e detalhado (4-6 parágrafos)
+1. Um resumo narrativo envolvente e detalhado (4-6 parágrafos) que reflita o tom {{campaign_tone}}
 2. 3 a 5 ganchos de aventura específicos e interessantes
-3. 3 a 5 NPCs importantes com personalidade definida
-4. 3 a 5 encontros balanceados para {{players}} jogadores no sistema {{system}}
+3. 3 a 5 NPCs importantes com personalidade definida, adequados ao sistema {{system}}
+4. 3 a 5 encontros balanceados para {{players}} jogadores {{experience_level}} no sistema {{system}}
 
-Para os encontros, considere as mecânicas específicas do sistema {{system}} ao definir dificuldade e criaturas.
-Para os NPCs, crie personagens tridimensionais com motivações claras.
+Para os encontros, use as mecânicas específicas do sistema {{system}} — criaturas, nomes, valores de dificuldade (CR, Challenge Rating, Perigo, etc.) no vocabulário correto do sistema.
+Para os NPCs, crie personagens tridimensionais com motivações claras alinhadas ao tom {{campaign_tone}}.
+Calibre a complexidade total para jogadores {{experience_level}}.
 
 Responda em JSON com a seguinte estrutura EXATA:
 {
@@ -358,6 +393,8 @@ Responda em JSON com a seguinte estrutura EXATA:
     variables: [
       { key: 'system', description: 'Sistema de RPG' },
       { key: 'setting', description: 'Ambientação' },
+      { key: 'campaign_tone', description: 'Tom(s) da campanha (ex: Épico, Horror, Grimdark)' },
+      { key: 'experience_level', description: 'Nível de experiência dos jogadores' },
       { key: 'duration', description: 'Duração da campanha' },
       { key: 'players', description: 'Número de jogadores' },
       { key: 'answers', description: 'Todas as respostas 5W2H formatadas' },
@@ -779,6 +816,150 @@ Responda em JSON:
       { key: 'answers_5w2h', description: 'Respostas 5W2H para contexto' }
     ],
     temperature: 0.75
+  },
+
+  // ─ Gerador de Criatura Completa ───────────────────────────────────────────
+  [AGENT_IDS.CREATURE_GENERATOR]: {
+    name: 'Gerador de Criatura Completa',
+    description: 'Gera uma criatura/monstro com ficha completa adaptada ao sistema de RPG especificado.',
+    systemPrompt: `Você é um designer de RPG especialista em criação de criaturas e monstros para múltiplos sistemas. Crie fichas completas, balanceadas e narrativamente ricas, usando a terminologia correta de cada sistema (CR para D&D, Ameaça para Tormenta20, etc.). Responda SEMPRE em JSON válido.`,
+    promptTemplate: `Crie uma criatura/monstro completo para esta campanha de RPG:
+
+SISTEMA: {{system_rpg}}
+AMBIENTAÇÃO: {{setting}}
+TIPO DE CRIATURA: {{creature_type}}
+NÍVEL DE AMEAÇA: {{threat_level}}
+{{#context}}
+CONTEXTO DA CAMPANHA: {{context}}
+{{/context}}
+{{#instructions}}
+INSTRUÇÕES ESPECÍFICAS: {{instructions}}
+{{/instructions}}
+
+Gere uma criatura que:
+- Use a terminologia e métricas corretas do sistema {{system_rpg}}
+- Seja adequada ao nível/CR/Ameaça {{threat_level}}
+- Tenha habilidades especiais temáticas e narrativamente interessantes
+- Inclua táticas de combate e comportamento
+- Tenha ganchos narrativos (loot, motivação, fraqueza exploitável)
+
+Responda em JSON:
+{
+  "name": "Nome da Criatura",
+  "type": "Tipo (ex: Morto-vivo, Besta, Humanoide)",
+  "threat_level": "CR/Nível de Ameaça no sistema {{system_rpg}}",
+  "size": "Tamanho (ex: Grande, Médio)",
+  "description": "Descrição física e comportamental em 2-3 frases",
+  "lore": "Lore e contexto narrativo em 1-2 frases",
+  "stats": {
+    "hp": "pontos de vida (ex: 52 (8d10 + 8))",
+    "ac": "classe de armadura (ex: 14 (couro natural))",
+    "speed": "velocidade (ex: 9m, voo 18m)",
+    "attributes": {
+      "FOR": 16, "DES": 12, "CON": 14, "INT": 6, "SAB": 10, "CAR": 8
+    },
+    "saving_throws": "testes de resistência relevantes",
+    "skills": "perícias relevantes",
+    "damage_immunities": "imunidades (se houver)",
+    "senses": "sentidos especiais",
+    "challenge": "CR ou equivalente no sistema"
+  },
+  "special_abilities": [
+    {"name": "Nome da Habilidade", "description": "Descrição mecânica"}
+  ],
+  "actions": [
+    {"name": "Nome da Ação", "description": "Descrição mecânica com dano/efeito"}
+  ],
+  "tactics": "Como esta criatura se comporta em combate",
+  "loot": "O que os jogadores podem obter ao derrotá-la",
+  "weakness": "Fraqueza exploitável narrativamente"
+}`,
+    variables: [
+      { key: 'system_rpg', description: 'Sistema de RPG (ex: D&D 5e, Pathfinder 2e)' },
+      { key: 'setting', description: 'Ambientação da campanha' },
+      { key: 'creature_type', description: 'Tipo de criatura (ex: Morto-vivo, Demônio, Besta)' },
+      { key: 'threat_level', description: 'Nível de ameaça/CR desejado' },
+      { key: 'context', description: 'Contexto da campanha (opcional)' },
+      { key: 'instructions', description: 'Instruções específicas (opcional)' }
+    ],
+    temperature: 0.85
+  },
+
+  // ─ Planejador de Sessão ────────────────────────────────────────────────────
+  [AGENT_IDS.SESSION_PLANNER]: {
+    name: 'Planejador de Sessão',
+    description: 'Gera um roteiro detalhado para uma sessão de RPG com abertura, cenas, NPCs ativos, objetivos e possíveis desfechos.',
+    systemPrompt: `Você é um mestre de RPG experiente especialista em planejamento de sessões. Crie roteiros de sessão práticos, flexíveis e com conteúdo imediatamente utilizável em mesa. Inclua ganchos de abertura impactantes, cenas com objetivos claros e fechamentos que deixem os jogadores querendo mais. Responda SEMPRE em JSON válido.`,
+    promptTemplate: `Crie um roteiro completo para uma sessão de RPG:
+
+SISTEMA: {{system_rpg}}
+AMBIENTAÇÃO: {{setting}}
+NÚMERO DE SESSÃO: {{session_number}}
+DURAÇÃO ESTIMADA: {{duration_hours}} horas
+JOGADORES: {{players_count}}
+
+CONTEXTO DA CAMPANHA:
+{{campaign_summary}}
+
+ARCO ATUAL: {{current_arc}}
+EVENTOS ANTERIORES: {{previous_events}}
+
+{{#custom_instructions}}
+INSTRUÇÕES ESPECÍFICAS: {{custom_instructions}}
+{{/custom_instructions}}
+
+Gere um roteiro de sessão que:
+- Tenha uma abertura impactante que retome os eventos anteriores
+- Inclua 3-5 cenas com objetivos claros e tempo estimado
+- Liste os NPCs ativos e seus objetivos nesta sessão
+- Inclua um ou mais momentos de tensão/climax
+- Termine com um gancho para a próxima sessão
+
+Responda em JSON:
+{
+  "session_title": "Título desta sessão",
+  "session_theme": "Tema central desta sessão (ex: Revelação, Traição, Exploração)",
+  "opening_hook": "Como a sessão começa — descrição cinematográfica de abertura para o mestre ler",
+  "session_objective": "O que os jogadores devem alcançar nesta sessão",
+  "estimated_duration": "{{duration_hours}}h",
+  "scenes": [
+    {
+      "order": 1,
+      "name": "Nome da Cena",
+      "type": "Combate | Social | Exploração | Investigação | Transição",
+      "estimated_time": "30 min",
+      "setup": "Como a cena começa",
+      "objective": "O que acontece nesta cena",
+      "npcs_active": ["NPC 1", "NPC 2"],
+      "possible_outcomes": ["Desfecho A", "Desfecho B"],
+      "dm_notes": "Dicas para o mestre conduzir esta cena"
+    }
+  ],
+  "key_npcs": [
+    {
+      "name": "Nome do NPC",
+      "role_this_session": "O que este NPC faz nesta sessão",
+      "secret": "Segredo que pode ser revelado (opcional)",
+      "agenda": "O que o NPC quer alcançar"
+    }
+  ],
+  "tension_moments": ["Momento de tensão 1", "Momento de tensão 2"],
+  "session_end_hook": "Como a sessão termina — gancho para deixar os jogadores ansiosos",
+  "xp_rewards": "Sugestão de XP/recompensas para a sessão",
+  "dm_checklist": ["Item a preparar 1", "Item a preparar 2", "Item a preparar 3"]
+}`,
+    variables: [
+      { key: 'system_rpg', description: 'Sistema de RPG' },
+      { key: 'setting', description: 'Ambientação' },
+      { key: 'session_number', description: 'Número da sessão (ex: 1, 5, 10)' },
+      { key: 'duration_hours', description: 'Duração estimada em horas (ex: 3, 4)' },
+      { key: 'players_count', description: 'Número de jogadores' },
+      { key: 'campaign_summary', description: 'Resumo da campanha' },
+      { key: 'current_arc', description: 'Arco narrativo atual' },
+      { key: 'previous_events', description: 'Eventos da sessão anterior' },
+      { key: 'custom_instructions', description: 'Instruções específicas (opcional)' }
+    ],
+    temperature: 0.85
   },
 
   // ─ Gerador de Encontro Individual ─────────────────────────────────────────
