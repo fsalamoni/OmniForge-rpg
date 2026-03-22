@@ -587,7 +587,7 @@ export const SeedData = {
 
 // ─── CampaignStorage ────────────────────────────────────────────────────────
 export const CampaignStorage = {
-  async uploadMapImage(campaignId, mapId, file) {
+  async uploadMapImage(campaignId, mapId, file, onProgress) {
     const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
     const { storage } = await import('./config');
     const path = `campaigns/${campaignId}/maps/${mapId}`;
@@ -595,7 +595,12 @@ export const CampaignStorage = {
     const task = uploadBytesResumable(storageRef, file);
     return new Promise((resolve, reject) => {
       task.on('state_changed',
-        null,
+        (snapshot) => {
+          if (onProgress) {
+            const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            onProgress(pct);
+          }
+        },
         reject,
         async () => {
           const url = await getDownloadURL(task.snapshot.ref);

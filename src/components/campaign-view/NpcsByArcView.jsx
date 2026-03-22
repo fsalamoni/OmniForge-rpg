@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronDown, ChevronRight, Users, Link } from 'lucide-react';
-import NpcCard from './NpcCard';
+import NpcCard from '@/components/campaign-view/NpcCard';
 import { NpcCreature } from '@/firebase/db';
 
 function AssociatePopover({ npc, arcs, onAssociate, onClose }) {

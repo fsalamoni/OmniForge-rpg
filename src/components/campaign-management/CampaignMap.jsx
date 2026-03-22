@@ -19,7 +19,7 @@ const MARKER_ICONS = {
   quest: '❓'
 };
 
-function MapCanvas({ map, isOwner, onAddMarker, onRemoveMarker }) {
+function MapCanvas({ map, isOwner, onCanvasClick, onRemoveMarker }) {
   const [hovered, setHovered] = useState(null);
   const canvasRef = useRef(null);
 
@@ -28,10 +28,8 @@ function MapCanvas({ map, isOwner, onAddMarker, onRemoveMarker }) {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-    const name = prompt('Nome do marcador:');
-    if (!name?.trim()) return;
-    onAddMarker({ x, y, name: name.trim(), type: 'location', notes: '', id: Date.now() });
-  }, [isOwner, onAddMarker]);
+    onCanvasClick({ x, y });
+  }, [isOwner, onCanvasClick]);
 
   const markers = map?.markers || [];
 
@@ -144,6 +142,7 @@ export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, in
     setSaving(true);
     try {
       await Campaign.update(campaignId, {
+        // maps array is the primary storage; map_markers kept for backward compatibility
         content_json: { ...content, maps: updatedMaps, map_markers: updatedMaps[0]?.markers || [] }
       });
     } catch (err) {
@@ -167,8 +166,9 @@ export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, in
     setDialogOpen(false);
   };
 
-  const handleAddMarkerFromCanvas = async (marker) => {
-    await updateActiveMap(m => ({ ...m, markers: [...(m.markers || []), marker] }));
+  const handleAddMarkerFromCanvas = ({ x, y }) => {
+    setNewMarker(prev => ({ ...prev, x, y }));
+    setDialogOpen(true);
   };
 
   const handleRemoveMarker = async (markerId) => {
@@ -207,7 +207,10 @@ export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, in
     setUploading(true);
     setUploadProgress(0);
     try {
-      const url = await CampaignStorage.uploadMapImage(campaignId, activeMapId, file);
+      const url = await CampaignStorage.uploadMapImage(
+        campaignId, activeMapId, file,
+        (pct) => setUploadProgress(pct)
+      );
       await updateActiveMap(m => ({ ...m, imageUrl: url }));
     } catch (err) {
       console.error('Erro ao fazer upload da imagem:', err);
@@ -427,7 +430,7 @@ export default function CampaignMap({ wbs, stakeholders, isOwner, campaignId, in
           <MapCanvas
             map={displayMap}
             isOwner={isOwner}
-            onAddMarker={handleAddMarkerFromCanvas}
+            onCanvasClick={handleAddMarkerFromCanvas}
             onRemoveMarker={handleRemoveMarker}
           />
 

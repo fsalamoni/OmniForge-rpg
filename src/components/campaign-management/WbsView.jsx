@@ -6,7 +6,7 @@ import { Target, ChevronDown, ChevronRight, Edit } from 'lucide-react';
 import EditWbsDialog from './EditWbsDialog';
 import { Campaign } from '@/firebase/db';
 
-export default function WbsView({ wbs, isOwner, campaignId, campaign, onRefresh, arcs = [], npcs = [] }) {
+export default function WbsView({ wbs, isOwner, campaignId, campaign, onRefresh, arcs = [], npcs: _npcs = [] }) {
   const [expandedArcs, setExpandedArcs] = useState({});
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
