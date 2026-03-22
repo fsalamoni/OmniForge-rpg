@@ -548,7 +548,7 @@ export default function ArcGenerator({ campaignId, description, answers5W2H, hoo
             <Label className="text-slate-300">Número de Atos</Label>
             <Input
               type="number" min="2" max="6" value={numActs}
-              onChange={(e) => setNumActs(parseInt(e.target.value) || 3)}
+              onChange={(e) => setNumActs(parseInt(e.target.value, 10) || 3)}
               className="bg-slate-950/50 border-slate-700 text-white mt-2"
             />
           </div>
@@ -556,7 +556,7 @@ export default function ArcGenerator({ campaignId, description, answers5W2H, hoo
             <Label className="text-slate-300">Cenas por Ato</Label>
             <Input
               type="number" min="1" max="5" value={scenesPerAct}
-              onChange={(e) => setScenesPerAct(parseInt(e.target.value) || 2)}
+              onChange={(e) => setScenesPerAct(parseInt(e.target.value, 10) || 2)}
               className="bg-slate-950/50 border-slate-700 text-white mt-2"
             />
           </div>

@@ -568,7 +568,7 @@ CONTEXTO DA CAMPANHA:
 CONTEXTO 5W2H:
 {{answers_5w2h}}
 
-{{custom_instructions}}
+INSTRUÇÕES ESPECÍFICAS DO NARRADOR: {{custom_instructions}}
 
 REGRA ABSOLUTA: Gere EXATAMENTE {{num_acts}} atos × {{scenes_per_act}} cenas.
 
