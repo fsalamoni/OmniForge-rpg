@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import QuestionCard from '../components/generator/QuestionCard';
 import ProgressBar from '../components/generator/ProgressBar';
 import { Wand2, ArrowLeft, Sparkles, Loader2, CheckCircle, Circle, Zap } from 'lucide-react';
@@ -101,6 +102,9 @@ const QUESTIONS_5W2H = [
 
 const DEFAULT_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Vampire: The Masquerade', 'Savage Worlds', 'GURPS', 'Outro'];
 
+const CAMPAIGN_TONES = ['Épico', 'Horror', 'Grimdark', 'Humor', 'Investigação', 'Político', 'Romance', 'Ação'];
+const EXPERIENCE_LEVELS = ['Novatos', 'Intermediário', 'Experientes', 'Veteranos'];
+
 const CREATIVITY_LABELS = ['Totalmente Fiel', 'Muito Fiel', 'Equilibrado', 'Criativo', 'Muito Criativo', 'Liberdade Total'];
 const CREATIVITY_INSTRUCTIONS = [
   'Siga estritamente as informações fornecidas, sem adicionar elementos extras.',
@@ -129,7 +133,9 @@ export default function Generator() {
     system_rpg: 'D&D 5e',
     setting: 'Fantasia Medieval',
     duration_type: 'One-shot',
-    players_count: 4
+    players_count: 4,
+    campaign_tone: [],
+    experience_level: 'Intermediário'
   });
   const [answers, setAnswers] = useState({});
   const [creativityLevel, setCreativityLevel] = useState(2);
@@ -184,7 +190,9 @@ export default function Generator() {
           system_rpg: campaign.system_rpg,
           setting: campaign.setting,
           duration_type: campaign.duration_type,
-          players_count: campaign.players_count
+          players_count: campaign.players_count,
+          campaign_tone: campaign.campaign_tone || [],
+          experience_level: campaign.experience_level || 'Intermediário'
         });
         setCreativityLevel(campaign.creativity_level || 2);
         setCurrentStep(campaign.current_step || 0);
@@ -275,6 +283,8 @@ export default function Generator() {
       const prompt = buildPrompt(config.promptTemplate, {
         system: formData.system_rpg,
         setting: formData.setting,
+        campaign_tone: formData.campaign_tone?.length ? formData.campaign_tone.join(', ') : 'Não especificado',
+        experience_level: formData.experience_level || 'Intermediário',
         duration: formData.duration_type,
         players: formData.players_count,
         title: formData.title,
@@ -355,6 +365,8 @@ export default function Generator() {
         const prompt = buildPrompt(config.promptTemplate, {
           system: formData.system_rpg,
           setting: formData.setting,
+          campaign_tone: formData.campaign_tone?.length ? formData.campaign_tone.join(', ') : 'Não especificado',
+          experience_level: formData.experience_level || 'Intermediário',
           duration: formData.duration_type,
           players: formData.players_count,
           title: formData.title,
@@ -438,6 +450,8 @@ export default function Generator() {
       const prompt = buildPrompt(genConfig.promptTemplate, {
         system: formData.system_rpg,
         setting: formData.setting,
+        campaign_tone: formData.campaign_tone?.length ? formData.campaign_tone.join(', ') : 'Não especificado',
+        experience_level: formData.experience_level || 'Intermediário',
         duration: formData.duration_type,
         players: formData.players_count,
         answers: answersText,
@@ -514,6 +528,8 @@ export default function Generator() {
         content_json: normalizedResult,
         answers_5w2h: answersText,
         answers_5w2h_map: answersForContext,
+        campaign_tone: formData.campaign_tone || [],
+        experience_level: formData.experience_level || 'Intermediário',
         is_completed: true,
         current_step: 8
       });
@@ -635,6 +651,46 @@ export default function Generator() {
                   className="bg-slate-950/50 border-slate-700 text-white"
                 />
               </div>
+              <div>
+                <Label className="text-white mb-2 block">Experiência dos Jogadores</Label>
+                <Select value={formData.experience_level} onValueChange={(value) => setFormData({ ...formData, experience_level: value })}>
+                  <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXPERIENCE_LEVELS.map((level) => (
+                      <SelectItem key={level} value={level}>{level}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label className="text-white mb-3 block">Tom da Campanha <span className="text-slate-500 text-xs">(selecione um ou mais)</span></Label>
+              <div className="flex flex-wrap gap-2">
+                {CAMPAIGN_TONES.map((tone) => {
+                  const selected = formData.campaign_tone.includes(tone);
+                  return (
+                    <button
+                      key={tone}
+                      type="button"
+                      onClick={() => {
+                        const tones = selected
+                          ? formData.campaign_tone.filter(t => t !== tone)
+                          : [...formData.campaign_tone, tone];
+                        setFormData({ ...formData, campaign_tone: tones });
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                        selected
+                          ? 'bg-purple-600 border-purple-500 text-white'
+                          : 'bg-slate-800/50 border-slate-600 text-slate-400 hover:border-purple-500/50 hover:text-slate-200'
+                      }`}
+                    >
+                      {tone}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <div className="flex justify-end">
@@ -665,7 +721,7 @@ export default function Generator() {
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-white mb-2">{formData.title}</h1>
-            <p className="text-slate-400">{formData.system_rpg} • {formData.setting}</p>
+            <p className="text-slate-400">{formData.system_rpg} • {formData.setting} • {formData.experience_level}</p>
           </div>
 
           <div className="p-8 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 rounded-2xl">
@@ -721,7 +777,14 @@ export default function Generator() {
         </button>
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">{formData.title}</h1>
-          <p className="text-slate-400">{formData.system_rpg} • {formData.setting}</p>
+          <p className="text-slate-400">{formData.system_rpg} • {formData.setting} • {formData.experience_level}</p>
+          {formData.campaign_tone?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {formData.campaign_tone.map(t => (
+                <Badge key={t} variant="outline" className="text-xs border-purple-500/40 text-purple-300">{t}</Badge>
+              ))}
+            </div>
+          )}
         </div>
         <ProgressBar currentStep={currentStep - 1} totalSteps={7} />
 

@@ -35,7 +35,7 @@ export default function ArcGenerator({ campaignId, description, answers5W2H, sys
     }
     setGenerating(true);
     try {
-      const result = await invokeLLM({
+      const raw = await invokeLLM({
         prompt: `TAREFA: Criar arco de RPG com EXATAMENTE ${numActs} atos, cada ato com EXATAMENTE ${scenesPerAct} cenas.
 
 Nome: ${arcName}
@@ -46,7 +46,9 @@ Ambientação: ${setting}
 REGRA ABSOLUTA: Total de ${numActs} atos × ${scenesPerAct} cenas = ${numActs * scenesPerAct} cenas no arco completo.
 
 ${customInstructions ? `EXTRA: ${customInstructions}\n` : ''}
-Contexto: ${(description || '').substring(0, 600)}`,
+Contexto: ${(description || '').substring(0, 600)}
+
+Retorne um JSON com campos: name, description, arc_objective, world_change, arc_villain, acts.`,
         responseSchema: {
           type: 'object',
           properties: {
@@ -96,6 +98,17 @@ Contexto: ${(description || '').substring(0, 600)}`,
         userAIConfig: userProfile.aiConfig,
         systemPrompt: 'Você é um assistente especialista em RPG. Responda SEMPRE em JSON válido conforme o schema solicitado.'
       });
+
+      // Unwrap common wrapper patterns some AI models return
+      let result = raw;
+      if (!result?.name && result?.arc) result = result.arc;
+      if (!result?.name && result?.narrative_arc) result = result.narrative_arc;
+      if (!result?.name && result?.data) result = result.data;
+      // Use arcName as fallback if AI omitted the name field but returned the rest
+      if (!result?.name && result?.acts) result = { ...result, name: arcName };
+      // Handle alt field names
+      if (!result?.name && result?.title) result = { ...result, name: result.title };
+      if (!result?.name && result?.arc_name) result = { ...result, name: result.arc_name };
 
       if (!result?.name) throw new Error('IA retornou um arco sem nome');
       if (!result.acts?.length) throw new Error('IA não criou nenhum ato para o arco');

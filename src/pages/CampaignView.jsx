@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useAuth } from '@/lib/AuthContext';
@@ -22,20 +23,20 @@ import {
   Anchor,
   GitBranch,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Plus,
+  Pencil
 } from 'lucide-react';
 
 // Campaign view sub-components
 import NpcCard from '../components/campaign-view/NpcCard';
 import GenerateNpcDialog from '../components/campaign-view/GenerateNpcDialog';
-import GenerateEncounterDialog from '../components/campaign-view/GenerateEncounterDialog';
+import EditNpcDialog from '../components/campaign-view/EditNpcDialog';
 import EditableSection from '../components/campaign-view/EditableSection';
-import EncounterCard from '../components/campaign-view/EncounterCard';
 import PlotHooksList from '../components/campaign-view/PlotHooksList';
 import HooksView from '../components/campaign-view/HooksView';
 import HooksGenerator from '../components/campaign-view/HooksGenerator';
 import ArcsView from '../components/campaign-view/ArcsView';
-import ArcGenerator from '../components/campaign-view/ArcGenerator';
 import NpcSelector from '../components/campaign-view/NpcSelector';
 
 // Campaign management components
@@ -60,6 +61,12 @@ export default function CampaignView() {
   const [masterNotes, setMasterNotes] = useState('');
   const [notesChanged, setNotesChanged] = useState(false);
   const [npcFilter, setNpcFilter] = useState('all');
+  const [showHookCreator, setShowHookCreator] = useState(false);
+  const [hookCreatorMode, setHookCreatorMode] = useState(null); // null | 'ai' | 'manual'
+  const [manualHookText, setManualHookText] = useState('');
+  const [showNpcCreator, setShowNpcCreator] = useState(false);
+  const [npcCreatorMode, setNpcCreatorMode] = useState(null); // null | 'ai' | 'manual'
+  const [manualNpcDialogOpen, setManualNpcDialogOpen] = useState(false);
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', campaignId],
@@ -253,53 +260,106 @@ export default function CampaignView() {
               <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{content.adventure_summary}</p>
             </div>
           )}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">Encontros Balanceados</h2>
-              <div className="flex items-center gap-3">
-                {content.encounters?.length > 0 && (
-                  <span className="text-slate-400">
-                    {content.encounters.length} {content.encounters.length === 1 ? 'encontro' : 'encontros'}
-                  </span>
-                )}
-                {isOwner && (
-                  <GenerateEncounterDialog
-                    campaignId={campaignId}
-                    campaign={campaign}
-                    onEncounterCreated={() => queryClient.invalidateQueries(['campaign', campaignId])}
-                  />
-                )}
-              </div>
+          {!content.adventure_summary && (
+            <div className="text-center py-12 bg-slate-900/30 border border-slate-800 rounded-2xl">
+              <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400">Nenhuma descrição disponível. Gere a campanha primeiro.</p>
             </div>
-            {content.encounters?.length > 0 ? (
-              content.encounters.map((encounter, index) => (
-                <EncounterCard key={index} encounter={encounter} index={index} />
-              ))
-            ) : (
-              <div className="text-center py-8 bg-slate-900/30 border border-slate-800 rounded-2xl">
-                <p className="text-slate-400">Nenhum encontro gerado ainda</p>
-              </div>
-            )}
-          </div>
+          )}
         </TabsContent>
 
         {/* ── TAB: GANCHOS ── */}
         <TabsContent value="hooks" className="space-y-6">
           {isOwner && (
-            <HooksGenerator
-              campaignId={campaignId}
-              description={campaignContext}
-              answers5W2H={answers5W2H}
-              systemRpg={campaign.system_rpg}
-              setting={campaign.setting}
-              onHooksGenerated={handleHooksGenerated}
-            />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Anchor className="w-6 h-6 text-purple-400" />
+                  Ganchos de Plot {content.plot_hooks?.length > 0 && `(${content.plot_hooks.length})`}
+                </h2>
+                <Button
+                  onClick={() => { setShowHookCreator(v => !v); setHookCreatorMode(null); setManualHookText(''); }}
+                  className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Novo Gancho
+                </Button>
+              </div>
+
+              {showHookCreator && (
+                <div className="space-y-4">
+                  {!hookCreatorMode && (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <Card className="bg-purple-900/20 border-purple-500/40 cursor-pointer hover:bg-purple-900/40 transition-colors" onClick={() => setHookCreatorMode('ai')}>
+                        <CardContent className="pt-8 pb-8 text-center space-y-3">
+                          <Sparkles className="w-12 h-12 text-purple-400 mx-auto" />
+                          <h3 className="text-white font-bold text-lg">Gerar por IA</h3>
+                          <p className="text-slate-400 text-sm">A IA cria vários ganchos narrativos com base na campanha</p>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-slate-800/50 border-slate-600 cursor-pointer hover:bg-slate-700/50 transition-colors" onClick={() => setHookCreatorMode('manual')}>
+                        <CardContent className="pt-8 pb-8 text-center space-y-3">
+                          <Pencil className="w-12 h-12 text-slate-300 mx-auto" />
+                          <h3 className="text-white font-bold text-lg">Criar Manualmente</h3>
+                          <p className="text-slate-400 text-sm">Escreva seu próprio gancho narrativo</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+                  {hookCreatorMode === 'ai' && (
+                    <div>
+                      <button onClick={() => setHookCreatorMode(null)} className="text-slate-400 hover:text-white text-sm mb-4 block">← Voltar</button>
+                      <HooksGenerator
+                        campaignId={campaignId}
+                        description={campaignContext}
+                        answers5W2H={answers5W2H}
+                        systemRpg={campaign.system_rpg}
+                        setting={campaign.setting}
+                        onHooksGenerated={async (newHooks) => { await handleHooksGenerated(newHooks); setShowHookCreator(false); setHookCreatorMode(null); }}
+                      />
+                    </div>
+                  )}
+                  {hookCreatorMode === 'manual' && (
+                    <div className="space-y-3 p-4 bg-slate-900/50 border border-slate-700 rounded-xl">
+                      <button onClick={() => setHookCreatorMode(null)} className="text-slate-400 hover:text-white text-sm">← Voltar</button>
+                      <div>
+                        <label className="text-slate-300 text-sm block mb-2">Texto do Gancho</label>
+                        <textarea
+                          value={manualHookText}
+                          onChange={(e) => setManualHookText(e.target.value)}
+                          placeholder="Escreva o gancho narrativo aqui..."
+                          className="w-full min-h-[100px] bg-slate-950/50 border border-slate-700 text-white rounded-md p-3 text-sm resize-y"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <Button variant="outline" onClick={() => { setShowHookCreator(false); setHookCreatorMode(null); setManualHookText(''); }} className="border-slate-700">Cancelar</Button>
+                        <Button
+                          onClick={async () => {
+                            if (!manualHookText.trim()) return;
+                            await handleHooksGenerated([manualHookText.trim()]);
+                            setManualHookText('');
+                            setShowHookCreator(false);
+                            setHookCreatorMode(null);
+                          }}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          Salvar Gancho
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
+
           {content.plot_hooks?.length > 0 ? (
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-white">
-                Ganchos de Plot ({content.plot_hooks.length})
-              </h2>
+              {!isOwner && (
+                <h2 className="text-2xl font-bold text-white">
+                  Ganchos de Plot ({content.plot_hooks.length})
+                </h2>
+              )}
               <HooksView
                 hooks={content.plot_hooks}
                 campaignContext={campaignContext}
@@ -312,40 +372,24 @@ export default function CampaignView() {
           ) : (
             <div className="text-center py-12 bg-slate-900/30 border border-slate-800 rounded-2xl">
               <Anchor className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400">Nenhum gancho gerado ainda. Use o gerador acima para criar ganchos.</p>
+              <p className="text-slate-400">{isOwner ? 'Nenhum gancho criado ainda. Use o botão "Novo Gancho" acima.' : 'Nenhum gancho disponível.'}</p>
             </div>
           )}
         </TabsContent>
 
         {/* ── TAB: ARCOS NARRATIVOS ── */}
         <TabsContent value="arcs" className="space-y-6">
-          {isOwner && (
-            <ArcGenerator
-              campaignId={campaignId}
-              description={campaignContext}
-              answers5W2H={answers5W2H}
-              systemRpg={campaign.system_rpg}
-              setting={campaign.setting}
-              onArcGenerated={handleArcGenerated}
-            />
-          )}
-          {content.narrative_arcs?.length > 0 ? (
-            <ArcsView
-              arcs={content.narrative_arcs}
-              campaignContext={campaignContext}
-              systemRpg={campaign.system_rpg}
-              gateways={content.decision_gateways || []}
-              campaignId={campaignId}
-              campaign={campaign}
-              isOwner={isOwner}
-              onRefresh={handleRefreshCampaign}
-            />
-          ) : (
-            <div className="text-center py-12 bg-slate-900/30 border border-slate-800 rounded-2xl">
-              <GitBranch className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400">Nenhum arco narrativo criado ainda. Use o gerador acima para criar arcos.</p>
-            </div>
-          )}
+          <ArcsView
+            arcs={content.narrative_arcs || []}
+            campaignContext={campaignContext}
+            systemRpg={campaign.system_rpg}
+            gateways={content.decision_gateways || []}
+            campaignId={campaignId}
+            campaign={campaign}
+            isOwner={isOwner}
+            onRefresh={handleRefreshCampaign}
+            onArcCreated={isOwner ? handleArcGenerated : undefined}
+          />
         </TabsContent>
 
         {/* ── TAB: NPCs E MONSTROS ── */}
@@ -381,20 +425,66 @@ export default function CampaignView() {
                       systemRpg={campaign.system_rpg}
                       onNpcsCreated={() => queryClient.invalidateQueries(['npcs', campaignId])}
                     />
-                    <GenerateNpcDialog
-                      campaignId={campaignId}
-                      systemRpg={campaign.system_rpg}
-                      setting={campaign.setting}
-                      onNpcCreated={() => queryClient.invalidateQueries(['npcs', campaignId])}
-                    />
+                    <Button
+                      onClick={() => { setShowNpcCreator(v => !v); setNpcCreatorMode(null); }}
+                      className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600"
+                      size="sm"
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Novo NPC ou Criatura
+                    </Button>
                   </>
                 )}
               </div>
             </div>
+
+            {/* NPC Creator — AI or Manual */}
+            {isOwner && showNpcCreator && (
+              <div className="space-y-4">
+                {!npcCreatorMode && (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Card className="bg-purple-900/20 border-purple-500/40 cursor-pointer hover:bg-purple-900/40 transition-colors" onClick={() => setNpcCreatorMode('ai')}>
+                      <CardContent className="pt-8 pb-8 text-center space-y-3">
+                        <Sparkles className="w-12 h-12 text-purple-400 mx-auto" />
+                        <h3 className="text-white font-bold text-lg">Gerar por IA</h3>
+                        <p className="text-slate-400 text-sm">A IA cria um NPC/criatura com stats, motivações e shadow file</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-800/50 border-slate-600 cursor-pointer hover:bg-slate-700/50 transition-colors" onClick={() => { setNpcCreatorMode('manual'); setManualNpcDialogOpen(true); }}>
+                      <CardContent className="pt-8 pb-8 text-center space-y-3">
+                        <Pencil className="w-12 h-12 text-slate-300 mx-auto" />
+                        <h3 className="text-white font-bold text-lg">Criar Manualmente</h3>
+                        <p className="text-slate-400 text-sm">Preencha todos os dados do personagem manualmente</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+                {npcCreatorMode === 'ai' && (
+                  <div>
+                    <button onClick={() => setNpcCreatorMode(null)} className="text-slate-400 hover:text-white text-sm mb-4 block">← Voltar</button>
+                    <GenerateNpcDialog
+                      campaignId={campaignId}
+                      systemRpg={campaign.system_rpg}
+                      setting={campaign.setting}
+                      onNpcCreated={() => { queryClient.invalidateQueries(['npcs', campaignId]); setShowNpcCreator(false); setNpcCreatorMode(null); }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Manual NPC Dialog */}
+            <EditNpcDialog
+              npc={null}
+              campaignId={campaignId}
+              onCreate={() => { queryClient.invalidateQueries(['npcs', campaignId]); setManualNpcDialogOpen(false); setShowNpcCreator(false); setNpcCreatorMode(null); }}
+              open={manualNpcDialogOpen}
+              onOpenChange={setManualNpcDialogOpen}
+            />
+
             {npcs.length === 0 ? (
               <div className="text-center py-16 bg-slate-900/30 backdrop-blur-xl border border-slate-800 rounded-2xl">
                 <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400">Nenhum NPC ou criatura gerado ainda</p>
+                <p className="text-slate-400">Nenhum NPC ou criatura criado ainda</p>
               </div>
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
@@ -503,6 +593,9 @@ export default function CampaignView() {
                 wbs={content.wbs}
                 stakeholders={content.stakeholders || []}
                 isOwner={isOwner}
+                campaignId={campaignId}
+                initialMarkers={content.map_markers || []}
+                content={content}
               />
             </TabsContent>
           </Tabs>

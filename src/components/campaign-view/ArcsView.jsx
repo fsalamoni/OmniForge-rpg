@@ -13,20 +13,32 @@ import {
   Swords,
   Gift,
   Lightbulb,
-  GitBranch
+  GitBranch,
+  Plus,
+  Sparkles,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import AIExpander from './AIExpander';
 import NarrativeTimeline from './NarrativeTimeline';
 import EditArcDialog from './EditArcDialog';
 import ArcCompletionTracker from './ArcCompletionTracker';
 import ReorderArcsDialog from './ReorderArcsDialog';
+import ArcGenerator from './ArcGenerator';
+import SceneEncounterDialog from './SceneEncounterDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Campaign } from '@/firebase/db';
 
-export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 5e', gateways = [], campaignId, campaign, isOwner, onRefresh }) {
+const EMPTY_ARC = { name: '', description: '', arc_objective: '', world_change: '', arc_villain: '', acts: [] };
+
+export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 5e', gateways = [], campaignId, campaign, isOwner, onRefresh, onArcCreated }) {
   const [expandedArcs, setExpandedArcs] = useState({});
   const [expandedActs, setExpandedActs] = useState({});
   const [viewMode, setViewMode] = useState('list');
+  const [showArcCreator, setShowArcCreator] = useState(false);
+  const [arcCreationMode, setArcCreationMode] = useState(null); // null | 'ai' | 'manual'
+  const [manualArcDialogOpen, setManualArcDialogOpen] = useState(false);
+  const [encounterDialog, setEncounterDialog] = useState(null); // { arcIdx, actIdx, sceneIdx }
 
   const toggleArc = (index) => setExpandedArcs(prev => ({ ...prev, [index]: !prev[index] }));
 
@@ -84,6 +96,102 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
     if (onRefresh) onRefresh();
   };
 
+  const handleAddEncounterToScene = async (arcIdx, actIdx, sceneIdx, encounterData) => {
+    if (!isOwner || !campaignId) return;
+    const updatedArcs = arcs.map((arc, i) => {
+      if (i !== arcIdx) return arc;
+      return {
+        ...arc,
+        acts: arc.acts.map((act, j) => {
+          if (j !== actIdx) return act;
+          return {
+            ...act,
+            scenes: act.scenes.map((scene, k) => {
+              if (k !== sceneIdx) return scene;
+              return { ...scene, encounters: [...(scene.encounters || []), encounterData] };
+            })
+          };
+        })
+      };
+    });
+    await Campaign.update(campaignId, {
+      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
+    });
+    if (onRefresh) onRefresh();
+  };
+
+  const handleToggleActCompletion = async (arcIndex, actIndex) => {
+    if (!isOwner || !campaignId) return;
+    const updatedArcs = arcs.map((arc, i) => {
+      if (i !== arcIndex) return arc;
+      return {
+        ...arc,
+        acts: arc.acts.map((act, j) => {
+          if (j !== actIndex) return act;
+          return { ...act, completed: !act.completed };
+        })
+      };
+    });
+    await Campaign.update(campaignId, {
+      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
+    });
+    if (onRefresh) onRefresh();
+  };
+
+  const handleToggleSceneCompletion = async (arcIndex, actIndex, sceneIndex) => {
+    if (!isOwner || !campaignId) return;
+    const updatedArcs = arcs.map((arc, i) => {
+      if (i !== arcIndex) return arc;
+      return {
+        ...arc,
+        acts: arc.acts.map((act, j) => {
+          if (j !== actIndex) return act;
+          return {
+            ...act,
+            scenes: (act.scenes || []).map((scene, k) => {
+              if (k !== sceneIndex) return scene;
+              return { ...scene, completed: !scene.completed };
+            })
+          };
+        })
+      };
+    });
+    await Campaign.update(campaignId, {
+      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
+    });
+    if (onRefresh) onRefresh();
+  };
+
+  const handleDeleteEncounterFromScene = async (arcIdx, actIdx, sceneIdx, encIdx) => {
+    if (!confirm('Remover este encontro?')) return;
+    const updatedArcs = arcs.map((arc, i) => {
+      if (i !== arcIdx) return arc;
+      return {
+        ...arc,
+        acts: arc.acts.map((act, j) => {
+          if (j !== actIdx) return act;
+          return {
+            ...act,
+            scenes: act.scenes.map((scene, k) => {
+              if (k !== sceneIdx) return scene;
+              return { ...scene, encounters: (scene.encounters || []).filter((_, ei) => ei !== encIdx) };
+            })
+          };
+        })
+      };
+    });
+    await Campaign.update(campaignId, {
+      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
+    });
+    if (onRefresh) onRefresh();
+  };
+
+  const handleArcCreatedFromAI = async (newArc) => {
+    if (onArcCreated) await onArcCreated(newArc);
+    setArcCreationMode(null);
+    setShowArcCreator(false);
+  };
+
   const handleReorderArcs = async (reorderedArcs) => {
     await Campaign.update(campaignId, {
       content_json: { ...campaign.content_json, narrative_arcs: reorderedArcs }
@@ -105,58 +213,131 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
     'Mortal': 'bg-red-600/20 text-red-300'
   };
 
-  if (!arcs || arcs.length === 0) {
-    return (
-      <div className="text-center py-16 bg-slate-900/30 backdrop-blur-xl border border-slate-800 rounded-2xl">
-        <BookOpen className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-        <p className="text-slate-400">Nenhum arco narrativo disponível</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <BookOpen className="w-8 h-8 text-purple-400" />
           <div>
             <h2 className="text-2xl font-bold text-white">Arcos Narrativos</h2>
             <p className="text-slate-400">
-              {arcs.length} {arcs.length === 1 ? 'arco' : 'arcos'} •{' '}
-              {arcs.reduce((sum, arc) => sum + (arc.acts?.length || 0), 0)} atos no total
+              {(arcs || []).length} {(arcs || []).length === 1 ? 'arco' : 'arcos'} •{' '}
+              {(arcs || []).reduce((sum, arc) => sum + (arc.acts?.length || 0), 0)} atos no total
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {isOwner && arcs.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {isOwner && onArcCreated && (
+            <Button
+              onClick={() => { setShowArcCreator(v => !v); setArcCreationMode(null); }}
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600"
+              size="sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Arco
+            </Button>
+          )}
+          {isOwner && (arcs || []).length > 1 && (
             <ReorderArcsDialog arcs={arcs} onReorder={handleReorderArcs} />
           )}
-          <Button
-            onClick={() => setViewMode('list')}
-            variant={viewMode === 'list' ? 'default' : 'outline'}
-            size="sm"
-            className={viewMode === 'list' ? 'bg-purple-600' : 'border-purple-500/30 text-purple-300'}
-          >
-            <BookOpen className="w-4 h-4 mr-2" />
-            Lista
-          </Button>
-          <Button
-            onClick={() => setViewMode('timeline')}
-            variant={viewMode === 'timeline' ? 'default' : 'outline'}
-            size="sm"
-            className={viewMode === 'timeline' ? 'bg-purple-600' : 'border-purple-500/30 text-purple-300'}
-          >
-            <GitBranch className="w-4 h-4 mr-2" />
-            Timeline
-          </Button>
+          {(arcs || []).length > 0 && (
+            <>
+              <Button
+                onClick={() => setViewMode('list')}
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                className={viewMode === 'list' ? 'bg-purple-600' : 'border-purple-500/30 text-purple-300'}
+              >
+                <BookOpen className="w-4 h-4 mr-2" />
+                Lista
+              </Button>
+              <Button
+                onClick={() => setViewMode('timeline')}
+                variant={viewMode === 'timeline' ? 'default' : 'outline'}
+                size="sm"
+                className={viewMode === 'timeline' ? 'bg-purple-600' : 'border-purple-500/30 text-purple-300'}
+              >
+                <GitBranch className="w-4 h-4 mr-2" />
+                Timeline
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {viewMode === 'timeline' && (
+      {/* ── Criador de Novo Arco ── */}
+      {showArcCreator && (
+        <div className="space-y-4">
+          {!arcCreationMode && (
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card
+                className="bg-purple-900/20 border-purple-500/40 cursor-pointer hover:bg-purple-900/40 transition-colors"
+                onClick={() => setArcCreationMode('ai')}
+              >
+                <CardContent className="pt-8 pb-8 text-center space-y-3">
+                  <Sparkles className="w-12 h-12 text-purple-400 mx-auto" />
+                  <h3 className="text-white font-bold text-lg">Gerar por IA</h3>
+                  <p className="text-slate-400 text-sm">A IA cria atos, cenas e desafios automaticamente com base na campanha</p>
+                </CardContent>
+              </Card>
+              <Card
+                className="bg-slate-800/50 border-slate-600 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                onClick={() => { setArcCreationMode('manual'); setManualArcDialogOpen(true); }}
+              >
+                <CardContent className="pt-8 pb-8 text-center space-y-3">
+                  <Pencil className="w-12 h-12 text-slate-300 mx-auto" />
+                  <h3 className="text-white font-bold text-lg">Criar Manualmente</h3>
+                  <p className="text-slate-400 text-sm">Escreva o arco com seus próprios atos, cenas e detalhes</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          {arcCreationMode === 'ai' && (
+            <div>
+              <button onClick={() => setArcCreationMode(null)} className="text-slate-400 hover:text-white text-sm mb-4 block">← Voltar</button>
+              <ArcGenerator
+                campaignId={campaignId}
+                description={campaignContext}
+                answers5W2H={{}}
+                systemRpg={campaign?.system_rpg || 'D&D 5e'}
+                setting={campaign?.setting || ''}
+                onArcGenerated={handleArcCreatedFromAI}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* EditArcDialog em modo controlado para criação manual */}
+      <EditArcDialog
+        arc={EMPTY_ARC}
+        onSave={async (newArc) => {
+          if (onArcCreated) await onArcCreated(newArc);
+          setManualArcDialogOpen(false);
+          setArcCreationMode(null);
+          setShowArcCreator(false);
+        }}
+        open={manualArcDialogOpen}
+        onOpenChange={setManualArcDialogOpen}
+      />
+
+      {(!arcs || arcs.length === 0) && !showArcCreator && (
+        <div className="text-center py-16 bg-slate-900/30 backdrop-blur-xl border border-slate-800 rounded-2xl">
+          <BookOpen className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+          <p className="text-slate-400 mb-4">Nenhum arco narrativo criado ainda</p>
+          {isOwner && onArcCreated && (
+            <Button onClick={() => setShowArcCreator(true)} className="bg-purple-600 hover:bg-purple-700">
+              <Plus className="w-4 h-4 mr-2" /> Criar Primeiro Arco
+            </Button>
+          )}
+        </div>
+      )}
+
+      {arcs && arcs.length > 0 && viewMode === 'timeline' && (
         <NarrativeTimeline arcs={arcs} gateways={gateways} />
       )}
 
-      {viewMode === 'list' && (
+      {arcs && arcs.length > 0 && viewMode === 'list' && (
         <div className="space-y-4">
           {arcs.map((arc, arcIndex) => (
             <Card key={arcIndex} className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
@@ -194,7 +375,12 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
               {expandedArcs[arcIndex] && arc.acts && arc.acts.length > 0 && (
                 <CardContent className="space-y-3">
                   {isOwner && (
-                    <ArcCompletionTracker arc={arc} isOwner={isOwner} />
+                    <ArcCompletionTracker
+                      arc={arc}
+                      isOwner={isOwner}
+                      onToggleAct={(actIdx) => handleToggleActCompletion(arcIndex, actIdx)}
+                      onToggleScene={(actIdx, scIdx) => handleToggleSceneCompletion(arcIndex, actIdx, scIdx)}
+                    />
                   )}
 
                   {(arc.arc_objective || arc.world_change || arc.arc_villain) && (
@@ -491,6 +677,54 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
                                           </ul>
                                         </div>
                                       )}
+
+                                      {/* ── Encontros da Cena ── */}
+                                      <div className="border-t border-slate-700/50 pt-3 mt-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <p className="text-xs font-semibold text-amber-300 flex items-center gap-1">
+                                            <Swords className="w-3 h-3" /> Encontros da Cena
+                                            {scene.encounters?.length > 0 && <span className="text-slate-400">({scene.encounters.length})</span>}
+                                          </p>
+                                          {isOwner && (
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => setEncounterDialog({ arcIdx: arcIndex, actIdx: actIndex, sceneIdx })}
+                                              className="text-amber-400 hover:text-amber-300 h-6 text-xs px-2"
+                                            >
+                                              <Plus className="w-3 h-3 mr-1" /> Novo Encontro
+                                            </Button>
+                                          )}
+                                        </div>
+                                        {scene.encounters && scene.encounters.length > 0 && (
+                                          <div className="space-y-2">
+                                            {scene.encounters.map((enc, encIdx) => (
+                                              <div key={encIdx} className="bg-amber-900/10 border border-amber-500/20 p-2 rounded text-xs">
+                                                <div className="flex items-start justify-between">
+                                                  <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                      <span className="text-amber-300 font-semibold">{enc.name}</span>
+                                                      {enc.difficulty && <Badge className="text-xs bg-orange-600/20 text-orange-300 border-orange-500/30">{enc.difficulty}</Badge>}
+                                                      {enc.encounter_type && <Badge className="text-xs bg-red-600/20 text-red-300 border-red-500/30">{enc.encounter_type}</Badge>}
+                                                    </div>
+                                                    {enc.description && <p className="text-slate-300 mb-1">{enc.description}</p>}
+                                                    {enc.creatures?.length > 0 && (
+                                                      <p className="text-slate-400">🐉 {enc.creatures.map(c => `${c.name} ×${c.quantity}`).join(', ')}</p>
+                                                    )}
+                                                    {enc.tactics && <p className="text-slate-400 italic mt-1">⚔️ {enc.tactics}</p>}
+                                                    {enc.rewards && <p className="text-green-400 mt-1">🎁 {enc.rewards}</p>}
+                                                  </div>
+                                                  {isOwner && (
+                                                    <Button size="sm" variant="ghost" onClick={() => handleDeleteEncounterFromScene(arcIndex, actIndex, sceneIdx, encIdx)} className="text-red-400 hover:text-red-300 h-6 w-6 p-0 ml-2">
+                                                      <Trash2 className="w-3 h-3" />
+                                                    </Button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
                                     </CardContent>
                                   </Card>
                                 ))}
@@ -518,17 +752,31 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
         </div>
       )}
 
-      <div className="p-6 bg-blue-900/10 border border-blue-500/20 rounded-lg">
-        <h3 className="text-blue-300 font-semibold mb-2 flex items-center gap-2">
-          <Lightbulb className="w-4 h-4" />
-          Dica para o Narrador
-        </h3>
-        <p className="text-slate-400 text-sm leading-relaxed">
-          Os arcos narrativos são estruturas flexíveis. Os jogadores não precisam seguir os atos
-          na ordem exata — adapte conforme as ações deles. Use as pistas para guiar sutilmente,
-          os NPCs envolvidos para criar momentos memoráveis, e os desafios para criar tensão.
-        </p>
-      </div>
+      {arcs && arcs.length > 0 && (
+        <div className="p-6 bg-blue-900/10 border border-blue-500/20 rounded-lg">
+          <h3 className="text-blue-300 font-semibold mb-2 flex items-center gap-2">
+            <Lightbulb className="w-4 h-4" />
+            Dica para o Narrador
+          </h3>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Os arcos narrativos são estruturas flexíveis. Os jogadores não precisam seguir os atos
+            na ordem exata — adapte conforme as ações deles. Use as pistas para guiar sutilmente,
+            os NPCs envolvidos para criar momentos memoráveis, e os desafios para criar tensão.
+          </p>
+        </div>
+      )}
+
+      {encounterDialog && (
+        <SceneEncounterDialog
+          open={!!encounterDialog}
+          onOpenChange={(v) => { if (!v) setEncounterDialog(null); }}
+          campaign={campaign}
+          onEncounterCreated={(enc) => {
+            handleAddEncounterToScene(encounterDialog.arcIdx, encounterDialog.actIdx, encounterDialog.sceneIdx, enc);
+            setEncounterDialog(null);
+          }}
+        />
+      )}
     </div>
   );
 }
