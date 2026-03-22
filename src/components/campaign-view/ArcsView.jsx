@@ -30,7 +30,7 @@ import { Campaign } from '@/firebase/db';
 
 const EMPTY_ARC = { name: '', description: '', arc_objective: '', world_change: '', arc_villain: '', acts: [] };
 
-export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 5e', gateways = [], campaignId, campaign, isOwner, onRefresh, onArcCreated }) {
+export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 5e', gateways = [], campaignId, campaign, isOwner, onRefresh, onArcCreated, answers5W2H = {}, hooks = [] }) {
   const [expandedArcs, setExpandedArcs] = useState({});
   const [expandedActs, setExpandedActs] = useState({});
   const [viewMode, setViewMode] = useState('list');
@@ -257,7 +257,8 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
               <ArcGenerator
                 campaignId={campaignId}
                 description={campaignContext}
-                answers5W2H={{}}
+                answers5W2H={answers5W2H}
+                hooks={hooks}
                 systemRpg={campaign?.system_rpg || 'D&D 5e'}
                 setting={campaign?.setting || ''}
                 onArcGenerated={handleArcCreatedFromAI}

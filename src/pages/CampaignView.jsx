@@ -43,6 +43,7 @@ import HooksView from '../components/campaign-view/HooksView';
 import HooksGenerator from '../components/campaign-view/HooksGenerator';
 import ArcsView from '../components/campaign-view/ArcsView';
 import NpcSelector from '../components/campaign-view/NpcSelector';
+import ManualDescriptionDialog from '../components/campaign-view/ManualDescriptionDialog';
 
 // Campaign management components
 import WbsView from '../components/campaign-management/WbsView';
@@ -72,6 +73,7 @@ export default function CampaignView() {
   const [showNpcCreator, setShowNpcCreator] = useState(false);
   const [npcCreatorMode, setNpcCreatorMode] = useState(null); // null | 'ai' | 'manual'
   const [manualNpcDialogOpen, setManualNpcDialogOpen] = useState(false);
+  const [manualDescriptionOpen, setManualDescriptionOpen] = useState(false);
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', campaignId],
@@ -109,6 +111,11 @@ export default function CampaignView() {
 
   const handleUpdateSummary = async (newSummary) => {
     const updatedContent = { ...content, adventure_summary: newSummary };
+    await updateContentMutation.mutateAsync(updatedContent);
+  };
+
+  const handleSaveManualDescription = async (descriptionData) => {
+    const updatedContent = { ...content, campaign_description_data: descriptionData };
     await updateContentMutation.mutateAsync(updatedContent);
   };
 
@@ -248,6 +255,23 @@ export default function CampaignView() {
 
         {/* ── TAB: DESCRIÇÃO GERAL ── */}
         <TabsContent value="description" className="space-y-6">
+          {isOwner && (
+            <div className="flex justify-end">
+              <ManualDescriptionDialog
+                currentData={content.campaign_description_data || null}
+                onSave={handleSaveManualDescription}
+                open={manualDescriptionOpen}
+                onOpenChange={setManualDescriptionOpen}
+              />
+              <button
+                onClick={() => setManualDescriptionOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800/70 border border-slate-600 text-slate-300 hover:bg-slate-700/70 hover:text-white transition-colors text-sm"
+              >
+                <Pencil className="w-4 h-4 text-purple-400" />
+                {content.campaign_description_data ? 'Editar Descrição Manualmente' : 'Criar Descrição Manualmente'}
+              </button>
+            </div>
+          )}
           {content.campaign_description_data ? (
             <CampaignDescriptionView data={content.campaign_description_data} />
           ) : content.adventure_summary && isOwner ? (
@@ -268,7 +292,7 @@ export default function CampaignView() {
           ) : (
             <div className="text-center py-12 bg-slate-900/30 border border-slate-800 rounded-2xl">
               <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400">Nenhuma descrição disponível. Gere a campanha primeiro.</p>
+              <p className="text-slate-400">Nenhuma descrição disponível. Gere a campanha primeiro ou crie manualmente.</p>
             </div>
           )}
         </TabsContent>
@@ -394,6 +418,8 @@ export default function CampaignView() {
             isOwner={isOwner}
             onRefresh={handleRefreshCampaign}
             onArcCreated={isOwner ? handleArcGenerated : undefined}
+            answers5W2H={answers5W2H}
+            hooks={content.plot_hooks || []}
           />
         </TabsContent>
 
