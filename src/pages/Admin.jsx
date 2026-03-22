@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useAuth } from '@/lib/AuthContext';
-import { AdminDB, SeedData, RpgSystem, AiAgent } from '@/firebase/db';
+import { AdminDB, SeedData, AiAgent } from '@/firebase/db';
 import { DEFAULT_AGENTS, AGENT_IDS } from '@/lib/aiAgents';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';

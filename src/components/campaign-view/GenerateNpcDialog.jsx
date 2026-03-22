@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { NpcCreature, AiAgent } from '@/firebase/db';
 import { invokeLLM } from '@/lib/aiClient';
-import { AGENT_IDS, DEFAULT_AGENTS, buildPrompt, getAgentConfig } from '@/lib/aiAgents';
+import { AGENT_IDS, buildPrompt, getAgentConfig } from '@/lib/aiAgents';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
