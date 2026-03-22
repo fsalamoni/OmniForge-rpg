@@ -30,7 +30,7 @@ import { Campaign } from '@/firebase/db';
 
 const EMPTY_ARC = { name: '', description: '', arc_objective: '', world_change: '', arc_villain: '', acts: [] };
 
-export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 5e', gateways = [], campaignId, campaign, isOwner, onRefresh, onArcCreated }) {
+export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 5e', gateways = [], campaignId, campaign, isOwner, onRefresh, onArcCreated, answers5W2H = {}, hooks = [], npcs = [] }) {
   const [expandedArcs, setExpandedArcs] = useState({});
   const [expandedActs, setExpandedActs] = useState({});
   const [viewMode, setViewMode] = useState('list');
@@ -158,6 +158,16 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
     if (onRefresh) onRefresh();
   };
 
+  const handleDeleteArc = async (arcIndex) => {
+    const arc = arcs[arcIndex];
+    if (!confirm(`Tem certeza que deseja excluir o arco "${arc.name}"?\n\nEsta ação não pode ser desfeita.`)) return;
+    const updatedArcs = arcs.filter((_, i) => i !== arcIndex);
+    await Campaign.update(campaignId, {
+      content_json: { ...campaign.content_json, narrative_arcs: updatedArcs }
+    });
+    if (onRefresh) onRefresh();
+  };
+
   const challengeTypeColors = {
     'Combate': 'bg-red-600/20 text-red-300 border-red-500/30',
     'Social': 'bg-blue-600/20 text-blue-300 border-blue-500/30',
@@ -181,7 +191,8 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
             <h2 className="text-2xl font-bold text-white">Arcos Narrativos</h2>
             <p className="text-slate-400">
               {(arcs || []).length} {(arcs || []).length === 1 ? 'arco' : 'arcos'} •{' '}
-              {(arcs || []).reduce((sum, arc) => sum + (arc.acts?.length || 0), 0)} atos no total
+              {(arcs || []).reduce((sum, arc) => sum + (arc.acts?.length || 0), 0)} atos •{' '}
+              {(arcs || []).reduce((sum, arc) => sum + (arc.acts || []).reduce((s, act) => s + (act.scenes?.length || 0), 0), 0)} cenas no total
             </p>
           </div>
         </div>
@@ -257,7 +268,9 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
               <ArcGenerator
                 campaignId={campaignId}
                 description={campaignContext}
-                answers5W2H={{}}
+                answers5W2H={answers5W2H}
+                hooks={hooks}
+                npcs={npcs}
                 systemRpg={campaign?.system_rpg || 'D&D 5e'}
                 setting={campaign?.setting || ''}
                 onArcGenerated={handleArcCreatedFromAI}
@@ -298,20 +311,28 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
 
       {arcs && arcs.length > 0 && viewMode === 'list' && (
         <div className="space-y-4">
-          {arcs.map((arc, arcIndex) => (
+          {arcs.map((arc, arcIndex) => {
+            const arcTotalScenes = (arc.acts || []).reduce((sum, act) => sum + (act.scenes?.length || 0), 0);
+            const arcCompletedScenes = (arc.acts || []).reduce((sum, act) => sum + ((act.scenes || []).filter(s => s.completed).length), 0);
+            const arcCompletedActs = (arc.acts || []).filter(a => a.completed).length;
+            const arcTotalActs = arc.acts?.length || 0;
+            const arcProgressPct = arcTotalScenes > 0
+              ? Math.round((arcCompletedScenes / arcTotalScenes) * 100)
+              : (arcTotalActs > 0 ? Math.round((arcCompletedActs / arcTotalActs) * 100) : 0);
+            return (
             <Card key={arcIndex} className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
               <CardHeader
                 className="cursor-pointer hover:bg-slate-800/30 transition-colors"
                 onClick={() => toggleArc(arcIndex)}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className="mt-1">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="mt-1 flex-shrink-0">
                       {expandedArcs[arcIndex]
                         ? <ChevronDown className="w-5 h-5 text-purple-400" />
                         : <ChevronRight className="w-5 h-5 text-purple-400" />}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <CardTitle className="text-xl text-white mb-2">
                         Arco {arcIndex + 1}: {arc.name}
                       </CardTitle>
@@ -320,13 +341,34 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3" onClick={(e) => e.stopPropagation()}>
+                    {!expandedArcs[arcIndex] && arcProgressPct > 0 && (
+                      <Badge className={`text-xs ${arcProgressPct === 100 ? 'bg-green-600/20 text-green-300 border-green-500/30' : 'bg-amber-600/20 text-amber-300 border-amber-500/30'}`}>
+                        {arcProgressPct}%{arcProgressPct === 100 ? ' ✓' : ''}
+                      </Badge>
+                    )}
                     {isOwner && (
                       <EditArcDialog arc={arc} onSave={(updatedArc) => handleSaveArc(arcIndex, updatedArc)} />
                     )}
-                    <Badge className="bg-purple-600/20 text-purple-300 border-purple-500/30">
-                      {arc.acts?.length || 0} atos
-                    </Badge>
+                    {isOwner && (
+                      <button
+                        onClick={() => handleDeleteArc(arcIndex)}
+                        title="Excluir arco"
+                        className="p-1.5 rounded text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className="bg-purple-600/20 text-purple-300 border-purple-500/30">
+                        {arcTotalActs} {arcTotalActs === 1 ? 'ato' : 'atos'}
+                      </Badge>
+                      {arcTotalScenes > 0 && (
+                        <Badge className="bg-slate-700/40 text-slate-400 border-slate-600/30 text-xs">
+                          {arcTotalScenes} {arcTotalScenes === 1 ? 'cena' : 'cenas'}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -707,7 +749,7 @@ export default function ArcsView({ arcs, campaignContext = '', systemRpg = 'D&D 
                 </CardContent>
               )}
             </Card>
-          ))}
+          ); })}
         </div>
       )}
 

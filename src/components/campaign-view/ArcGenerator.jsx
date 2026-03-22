@@ -15,7 +15,7 @@ const MISSION_TYPES = [
   'Sobrevivência', 'Caça', 'Escolta'
 ];
 
-export default function ArcGenerator({ campaignId, description, answers5W2H, systemRpg, setting, onArcGenerated }) {
+export default function ArcGenerator({ campaignId, description, answers5W2H, hooks = [], npcs = [], systemRpg, setting, onArcGenerated }) {
   const [arcName, setArcName] = useState('');
   const [missionType, setMissionType] = useState('Investigação');
   const [numActs, setNumActs] = useState(3);
@@ -35,20 +35,43 @@ export default function ArcGenerator({ campaignId, description, answers5W2H, sys
     }
     setGenerating(true);
     try {
-      const raw = await invokeLLM({
-        prompt: `TAREFA: Criar arco de RPG com EXATAMENTE ${numActs} atos, cada ato com EXATAMENTE ${scenesPerAct} cenas.
+      // Build context sections for the prompt
+      const hooksContext = hooks && hooks.length > 0
+        ? `\nGANCHOS DA CAMPANHA (use-os como base para conflitos e motivações do arco):\n${hooks.slice(0, 5).map((h, i) => {
+            const text = typeof h === 'string' ? h
+              : (h.text || h.description || h.content || h.title || h.hook || h.name || '');
+            return `${i + 1}. ${text || '[gancho sem texto]'}`;
+          }).join('\n')}`
+        : '';
 
-Nome: ${arcName}
-Missão: ${missionType}
-Sistema: ${systemRpg}
+      const w2h5Context = answers5W2H && Object.keys(answers5W2H).length > 0
+        ? `\n5W2H DA CAMPANHA:\n${Object.entries(answers5W2H).map(([k, v]) => `${k}: ${String(v).substring(0, 80)}`).join('\n')}`
+        : '';
+
+      const npcsContext = npcs && npcs.length > 0
+        ? `\nNPCs/CRIATURAS EXISTENTES (prefira usá-los nos npcs_involved dos atos e cenas):\n${npcs.slice(0, 12).map(n => `- ${n.name}${n.type ? ` (${n.type})` : ''}${n.role ? ` — ${n.role}` : ''}`).join('\n')}`
+        : '';
+
+      const raw = await invokeLLM({
+        prompt: `TAREFA: Criar arco narrativo de RPG com EXATAMENTE ${numActs} atos, cada ato com EXATAMENTE ${scenesPerAct} cenas.
+
+Nome do Arco: ${arcName}
+Tipo de Missão: ${missionType}
+Sistema RPG: ${systemRpg}
 Ambientação: ${setting}
 
-REGRA ABSOLUTA: Total de ${numActs} atos × ${scenesPerAct} cenas = ${numActs * scenesPerAct} cenas no arco completo.
+REGRA ABSOLUTA: ${numActs} atos × ${scenesPerAct} cenas = ${numActs * scenesPerAct} cenas no total.
 
-${customInstructions ? `EXTRA: ${customInstructions}\n` : ''}
-Contexto: ${(description || '').substring(0, 600)}
+DESCRIÇÃO DA CAMPANHA (contexto principal):
+${(description || '').substring(0, 600)}
+${hooksContext}
+${w2h5Context}
+${npcsContext}
+${customInstructions ? `\nINSTRUÇÕES ESPECÍFICAS: ${customInstructions}` : ''}
 
-Retorne um JSON com campos: name, description, arc_objective, world_change, arc_villain, acts.`,
+IMPORTANTE: O arco deve ser COERENTE com a descrição da campanha, os ganchos e o 5W2H acima.
+
+Retorne um JSON com: name, description, arc_objective, world_change, arc_villain, acts.`,
         responseSchema: {
           type: 'object',
           properties: {
