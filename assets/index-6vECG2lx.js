@@ -3702,7 +3702,7 @@ Defina a INTENSIDADE que inclua:
 - Ritmo esperado das sessões para {{players}} jogadores
 - Tenha entre 2 e 4 frases
 
-Responda em JSON: {"answer": "intensidade e stakes aqui"}`,variables:[{key:"system",description:"Sistema de RPG"},{key:"setting",description:"Ambientação"},{key:"campaign_tone",description:"Tom(s) da campanha"},{key:"experience_level",description:"Nível de experiência dos jogadores"},{key:"duration",description:"Duração"},{key:"players",description:"Número de jogadores"},{key:"title",description:"Título"},{key:"previous_answers",description:"Respostas anteriores do 5W2H"}],temperature:.8},[rt.CAMPAIGN_GENERATOR]:{name:"Gerador de Campanha Completa",description:"Gera a campanha completa (descrição estruturada, ganchos, NPCs, encontros) a partir das respostas 5W2H.",systemPrompt:"Você é um designer de campanhas profissional de RPG, especialista em criar campanhas completas, balanceadas e inesquecíveis para qualquer sistema. Você domina sistemas como D&D, Pathfinder, Call of Cthulhu, Vampire, Ordem Paranormal, Tormenta20 e sabe criar conteúdo adaptado a cada um. Responda SEMPRE em JSON válido e estruturado, sem nenhum texto fora do JSON.",promptTemplate:`Você é um designer de campanhas profissional de RPG. Crie uma CAMPANHA COMPLETA com base nestas informações. O texto deve ser enciclopédico, mas inspirador. MÍNIMO DE 2500 CARACTERES na descrição.
+Responda em JSON: {"answer": "intensidade e stakes aqui"}`,variables:[{key:"system",description:"Sistema de RPG"},{key:"setting",description:"Ambientação"},{key:"campaign_tone",description:"Tom(s) da campanha"},{key:"experience_level",description:"Nível de experiência dos jogadores"},{key:"duration",description:"Duração"},{key:"players",description:"Número de jogadores"},{key:"title",description:"Título"},{key:"previous_answers",description:"Respostas anteriores do 5W2H"}],temperature:.8},[rt.CAMPAIGN_GENERATOR]:{name:"Gerador de Campanha Completa",description:"Gera a campanha completa (descrição estruturada, ganchos, NPCs, encontros) a partir das respostas 5W2H.",systemPrompt:"Você é um designer de campanhas profissional de RPG, especialista em criar campanhas completas, balanceadas e inesquecíveis para qualquer sistema. Você domina sistemas como D&D, Pathfinder, Call of Cthulhu, Vampire, Ordem Paranormal, Tormenta20 e sabe criar conteúdo adaptado a cada um. Responda SEMPRE em JSON válido e estruturado, sem nenhum texto fora do JSON.",promptTemplate:`Você é um designer de campanhas profissional de RPG. Crie uma CAMPANHA COMPLETA em português do Brasil com base nas informações abaixo. Cada campo deve conter texto RICO, DETALHADO e INSPIRADOR — NUNCA deixe um campo vazio. MÍNIMO TOTAL DE 2500 CARACTERES na soma dos textos das seções premissa, contexto_mundo e conflito_central.
 
 SISTEMA: {{system}}
 AMBIENTAÇÃO: {{setting}}
@@ -3715,49 +3715,138 @@ CRIATIVIDADE: {{creativity_level}}/5 — {{creativity_instructions}}
 RESPOSTAS DO PLANEJAMENTO (5W2H):
 {{answers}}
 
-Crie em português do Brasil uma campanha completa com TODAS as seções abaixo.
+Use as respostas 5W2H acima como FUNDAMENTO de toda a campanha. Seja específico para {{system}} em {{setting}}.
 
-SEÇÃO 1 — PREMISSA:
-- pitch: Protagonistas + Ação Central + Antagonista/Obstáculo (2-3 frases)
-- e_se: A pergunta fundamental que altera o status quo
-- promessa_experiencia: O que os jogadores sentirão?
-- funcao_personagens: Quem são e qual seu objetivo
-- proposta_jogo: Gênero refinado e o que farão na maior parte do tempo
-- escala: Escopo da campanha (vila, reino, multiverso?) e nível de progressão
+RETORNE EXATAMENTE o seguinte objeto JSON, preenchendo CADA campo com conteúdo gerado (nenhum campo pode ser string vazia):
 
-SEÇÃO 2 — CONTEXTO DO MUNDO:
-- geografia_atmosfera: Regiões de interesse, clima, arquitetura
-- paleta_sensorial: Cores, cheiros e sons predominantes
-- sociedade_cultura: Como vivem, o que é crime, o que é sagrado
-- historia_recente: Últimos 50 anos que moldaram o presente
-- letalidade_moralidade: Cinematográfica/Maniqueísta ou Crua/Cinza
-
-SEÇÃO 3 — CONFLITO CENTRAL:
-- origem_problema: O que quebrou o status quo?
-- faccoes_envolvidas: Quem são os grandes players?
-- stakes: Por que isso importa?
-- tensao_politica: Quem oprime quem? Qual escassez?
-- inimigos: Diferença entre ameaça imediata e existencial
-
-SEÇÃO 4 — FORÇAS DE PODER (2 a 4 facções principais):
-Para cada facção: nome, desejo (o que querem desesperadamente), recurso (o que têm em abundância), carencia (o que precisam e não conseguem sozinhos)
-
-SEÇÃO 5 — ASPECTOS DA CAMPANHA (3 a 5 fatos absolutos):
-Características únicas que diferenciam este cenário
-
-SEÇÃO 6 — RELÓGIO DO APOCALIPSE (3 a 5 estágios):
-Cronograma do que acontece se os heróis não agirem — com estagio (nome), descricao e tempo_estimado
-
-SEÇÃO 7 — GANCHOS (3 a 5):
-Ganchos de aventura específicos e interessantes para engajar os jogadores
-
-SEÇÃO 8 — NPCs (3 a 5):
-Personagens importantes com name, role, motivation, description (adequados ao sistema {{system}})
-
-SEÇÃO 9 — ENCONTROS (3 a 5):
-Encontros balanceados para {{players}} jogadores {{experience_level}} no sistema {{system}}, com name, difficulty (Fácil|Médio|Difícil|Mortal), description, creatures (name+quantity), tactics
-
-Use as respostas 5W2H como base fundamental. Seja específico para {{system}} em {{setting}}.`,variables:[{key:"system",description:"Sistema de RPG"},{key:"setting",description:"Ambientação"},{key:"campaign_tone",description:"Tom(s) da campanha (ex: Épico, Horror, Grimdark)"},{key:"experience_level",description:"Nível de experiência dos jogadores"},{key:"duration",description:"Duração da campanha"},{key:"players",description:"Número de jogadores"},{key:"answers",description:"Todas as respostas 5W2H formatadas"},{key:"creativity_level",description:"Nível de criatividade (0-5)"},{key:"creativity_instructions",description:"Instrução textual do nível de criatividade"}],temperature:.8},[rt.NPC_GENERATOR]:{name:"Gerador de NPC Individual",description:"Gera um NPC/criatura/aliado/vilão completo e memorável para uma campanha.",systemPrompt:"Você é um mestre de RPG especialista em criação de personagens secundários (NPCs) ricos, complexos e memoráveis. Você domina as mecânicas de múltiplos sistemas de RPG e sabe criar fichas de personagens adaptadas a cada sistema. Responda SEMPRE em JSON válido.",promptTemplate:`Crie um {{type}} completo e memorável para esta campanha de RPG:
+{
+  "premissa": {
+    "pitch": "<2-3 frases apresentando os protagonistas, a ação central e o antagonista/obstáculo principal>",
+    "e_se": "<a pergunta 'E se...?' fundamental que quebra o status quo e move a campanha>",
+    "promessa_experiencia": "<descreva o que os jogadores sentirão: tensão, maravilha, horror, heroísmo — seja evocativo>",
+    "funcao_personagens": "<quem são os personagens jogadores, qual seu papel e objetivo dentro do mundo>",
+    "proposta_jogo": "<gênero refinado da campanha e o que os jogadores farão na maior parte do tempo>",
+    "escala": "<escopo geográfico/narrativo da campanha e progressão esperada de poder/nível>"
+  },
+  "contexto_mundo": {
+    "geografia_atmosfera": "<regiões de interesse, clima dominante, arquitetura marcante — crie imagem mental vívida>",
+    "paleta_sensorial": "<cores, cheiros e sons característicos do cenário — detalhe o que torna o lugar único>",
+    "sociedade_cultura": "<como as pessoas vivem, o que é considerado crime, o que é sagrado ou tabu>",
+    "historia_recente": "<os últimos 50 anos de eventos que moldaram o presente — guerras, catástrofes, descobertas>",
+    "letalidade_moralidade": "<o tom moral da campanha: heróico/cinematográfico ou sombrio/cinza — e o que isso significa para os PCs>"
+  },
+  "conflito_central": {
+    "origem_problema": "<o evento ou decisão que quebrou o equilíbrio e desencadeou a crise atual>",
+    "faccoes_envolvidas": "<os grandes players do conflito: governos, cultos, corporações, facções — quem são e o que representam>",
+    "stakes": "<por que isso importa para o mundo e para os personagens — o que está em jogo se os heróis falharem>",
+    "tensao_politica": "<quem oprime quem, qual escassez gera conflito, as injustiças que alimentam o fogo>",
+    "inimigos": "<distinção entre a ameaça imediata (visível) e a ameaça existencial (oculta) que os heróis enfrentarão>"
+  },
+  "forcas_poder": [
+    {
+      "nome": "<nome da facção 1 — obrigatória>",
+      "desejo": "<o que essa facção quer desesperadamente — seu objetivo máximo>",
+      "recurso": "<o que essa facção possui em abundância — seu poder ou vantagem>",
+      "carencia": "<o que essa facção precisa e não consegue sozinha — sua fraqueza>"
+    },
+    {
+      "nome": "<nome da facção 2 — obrigatória>",
+      "desejo": "<o que essa facção quer desesperadamente>",
+      "recurso": "<o que essa facção possui em abundância>",
+      "carencia": "<o que essa facção precisa e não consegue sozinha>"
+    },
+    {
+      "nome": "<nome da facção 3 — adicione se a campanha tiver 3 ou 4 facções relevantes, caso contrário omita>",
+      "desejo": "<o que essa facção quer desesperadamente>",
+      "recurso": "<o que essa facção possui em abundância>",
+      "carencia": "<o que essa facção precisa e não consegue sozinha>"
+    }
+  ],
+  "aspectos_campanha": [
+    "<fato absoluto 1 que diferencia este cenário — algo único e marcante>",
+    "<fato absoluto 2 — uma verdade imutável do mundo>",
+    "<fato absoluto 3 — uma característica inesquecível>",
+    "<fato absoluto 4 — adicione se enriquecer o cenário, caso contrário omita>",
+    "<fato absoluto 5 — adicione se enriquecer o cenário, caso contrário omita>"
+  ],
+  "relogio_apocalipse": [
+    {
+      "estagio": "<nome do estágio 1 — ex: 'Tensão Crescente'>",
+      "descricao": "<o que acontece neste estágio se os heróis não intervirem — seja específico e dramático>",
+      "tempo_estimado": "<quanto tempo in-game até este estágio — ex: '2 semanas'>"
+    },
+    {
+      "estagio": "<nome do estágio 2>",
+      "descricao": "<consequências deste estágio>",
+      "tempo_estimado": "<tempo estimado>"
+    },
+    {
+      "estagio": "<nome do estágio 3>",
+      "descricao": "<consequências deste estágio>",
+      "tempo_estimado": "<tempo estimado>"
+    },
+    {
+      "estagio": "<nome do estágio 4 — opcional>",
+      "descricao": "<consequências deste estágio>",
+      "tempo_estimado": "<tempo estimado>"
+    },
+    {
+      "estagio": "<Catástrofe Final — nome do colapso total>",
+      "descricao": "<o fim do mundo como os personagens conhecem se nada for feito>",
+      "tempo_estimado": "<prazo final>"
+    }
+  ],
+  "plot_hooks": [
+    "<gancho 1 — situação concreta que puxa os PCs para a aventura>",
+    "<gancho 2 — um segundo gancho diferente do primeiro>",
+    "<gancho 3 — um terceiro gancho diferente dos anteriores>",
+    "<gancho 4 — adicione se enriquecer a campanha, caso contrário omita>",
+    "<gancho 5 — adicione se enriquecer a campanha, caso contrário omita>"
+  ],
+  "npcs": [
+    {
+      "name": "<nome do NPC 1>",
+      "role": "<papel na trama — aliado, vilão, informante, etc.>",
+      "motivation": "<o que move este NPC — seu desejo ou medo central>",
+      "description": "<aparência, personalidade, segredo ou peculiaridade marcante>"
+    },
+    {
+      "name": "<nome do NPC 2>",
+      "role": "<papel na trama>",
+      "motivation": "<motivação>",
+      "description": "<descrição>"
+    },
+    {
+      "name": "<nome do NPC 3>",
+      "role": "<papel na trama>",
+      "motivation": "<motivação>",
+      "description": "<descrição>"
+    }
+  ],
+  "encounters": [
+    {
+      "name": "<nome do encontro 1>",
+      "difficulty": "Médio",
+      "description": "<situação, ambiente e objetivos táticos do encontro>",
+      "creatures": [{"name": "<criatura>", "quantity": 1}],
+      "tactics": "<como os inimigos agem e o que torna este encontro memorável>"
+    },
+    {
+      "name": "<nome do encontro 2>",
+      "difficulty": "Difícil",
+      "description": "<situação e ambiente>",
+      "creatures": [{"name": "<criatura>", "quantity": 2}],
+      "tactics": "<táticas>"
+    },
+    {
+      "name": "<nome do encontro 3>",
+      "difficulty": "Mortal",
+      "description": "<situação e ambiente>",
+      "creatures": [{"name": "<criatura>", "quantity": 1}],
+      "tactics": "<táticas>"
+    }
+  ]
+}`,variables:[{key:"system",description:"Sistema de RPG"},{key:"setting",description:"Ambientação"},{key:"campaign_tone",description:"Tom(s) da campanha (ex: Épico, Horror, Grimdark)"},{key:"experience_level",description:"Nível de experiência dos jogadores"},{key:"duration",description:"Duração da campanha"},{key:"players",description:"Número de jogadores"},{key:"answers",description:"Todas as respostas 5W2H formatadas"},{key:"creativity_level",description:"Nível de criatividade (0-5)"},{key:"creativity_instructions",description:"Instrução textual do nível de criatividade"}],temperature:.8},[rt.NPC_GENERATOR]:{name:"Gerador de NPC Individual",description:"Gera um NPC/criatura/aliado/vilão completo e memorável para uma campanha.",systemPrompt:"Você é um mestre de RPG especialista em criação de personagens secundários (NPCs) ricos, complexos e memoráveis. Você domina as mecânicas de múltiplos sistemas de RPG e sabe criar fichas de personagens adaptadas a cada sistema. Responda SEMPRE em JSON válido.",promptTemplate:`Crie um {{type}} completo e memorável para esta campanha de RPG:
 
 SISTEMA: {{system}}
 AMBIENTAÇÃO: {{setting}}
