@@ -160,9 +160,9 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
         group
       `}
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Left: Name + metadata */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-white text-sm truncate">
               {model.label}
@@ -173,27 +173,27 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <div className="flex items-center gap-2 mt-0.5">
             <Badge
               variant="outline"
-              className="text-[10px] px-1.5 py-0 border-slate-600 text-slate-400"
+              className="text-[10px] px-1.5 py-0 border-slate-600 text-slate-400 shrink-0"
             >
               {model.provider}
             </Badge>
             <Badge
               variant="outline"
-              className={`text-[10px] px-1.5 py-0 border ${TIER_CONFIG[model.tier]?.color || 'text-slate-400 border-slate-600'}`}
+              className={`text-[10px] px-1.5 py-0 border shrink-0 ${TIER_CONFIG[model.tier]?.color || 'text-slate-400 border-slate-600'}`}
             >
               {TIER_CONFIG[model.tier]?.icon} {TIER_CONFIG[model.tier]?.label || model.tier}
             </Badge>
-            <span className="text-xs text-slate-500 truncate hidden sm:inline">
+            <span className="text-xs text-slate-500 truncate hidden sm:block min-w-0">
               {model.description}
             </span>
           </div>
         </div>
 
         {/* Center: Scores */}
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-1 shrink-0">
           {categories.map((cat) => (
             <div key={cat} className="flex flex-col items-center gap-0.5">
               <ScoreBadge
@@ -208,34 +208,33 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
         </div>
 
         {/* Right: Context + Price */}
-        <div className="hidden sm:flex items-center gap-4 text-xs text-slate-400 shrink-0">
+        <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 shrink-0">
           <div className="flex items-center gap-1" title="Janela de contexto">
             <Cpu className="w-3.5 h-3.5 text-slate-500" />
             <span>{formatContextWindow(model.contextWindow)}</span>
-            <span className="text-[10px] text-slate-600">tokens</span>
           </div>
-          <div className="flex flex-col items-end min-w-[80px]">
+          <div className="flex flex-col items-end min-w-[70px]">
             <span className="text-slate-300">
               {model.isFree ? (
                 <span className="text-green-400 font-medium">Grátis</span>
               ) : (
                 <>
                   {formatCost(model.inputCost)}
-                  <span className="text-slate-600 text-[10px]"> /1M entrada</span>
+                  <span className="text-slate-600 text-[10px]"> /1M in</span>
                 </>
               )}
             </span>
             {!model.isFree && (
               <span>
                 {formatCost(model.outputCost)}
-                <span className="text-slate-600 text-[10px]"> /1M saída</span>
+                <span className="text-slate-600 text-[10px]"> /1M out</span>
               </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Mobile: Scores row */}
+      {/* Mobile: Scores + info row */}
       <div className="flex md:hidden items-center gap-1 mt-2">
         {categories.map((cat) => (
           <div key={cat} className="flex items-center gap-0.5">
@@ -386,15 +385,15 @@ export default function ModelCatalogModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
+        className="bg-slate-900 border-purple-900/20 max-w-5xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
-          searchRef.current?.focus();
+          setTimeout(() => searchRef.current?.focus(), 50);
         }}
       >
         <TooltipProvider delayDuration={200}>
         {/* ── Header ──────────────────────────────────────────────────── */}
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-800">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-800 shrink-0">
           <DialogTitle className="text-xl text-white font-bold">
             Selecionar Modelo
           </DialogTitle>
@@ -416,7 +415,7 @@ export default function ModelCatalogModal({
         </DialogHeader>
 
         {/* ── Filters bar ─────────────────────────────────────────────── */}
-        <div className="px-6 py-3 border-b border-slate-800 space-y-3">
+        <div className="px-6 py-3 border-b border-slate-800 space-y-3 shrink-0">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -425,6 +424,7 @@ export default function ModelCatalogModal({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.stopPropagation()}
+              onKeyUp={(e) => e.stopPropagation()}
               placeholder="Buscar modelo..."
               className="pl-9 pr-8 bg-slate-950/50 border-slate-700 text-white text-sm placeholder:text-slate-500"
             />
@@ -522,9 +522,9 @@ export default function ModelCatalogModal({
         </div>
 
         {/* ── Column headers ──────────────────────────────────────────── */}
-        <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-          <div className="flex-1">Modelo</div>
-          <div className="hidden md:flex items-center gap-1">
+        <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+          <div className="flex-1 min-w-0">Modelo</div>
+          <div className="hidden md:flex items-center gap-1 shrink-0">
             {Object.entries(CATEGORY_LABELS).map(([key, cat]) => (
               <div key={key} className="flex flex-col items-center w-7">
                 <Tooltip>
@@ -544,9 +544,9 @@ export default function ModelCatalogModal({
               </div>
             ))}
           </div>
-          <div className="hidden sm:flex items-center gap-4 shrink-0">
-            <span className="w-[70px] text-center">Contexto</span>
-            <span className="w-[80px] text-right">Preço</span>
+          <div className="hidden sm:flex items-center gap-3 shrink-0">
+            <span className="w-[60px] text-center">Contexto</span>
+            <span className="w-[70px] text-right">Preço</span>
           </div>
         </div>
 
@@ -580,7 +580,7 @@ export default function ModelCatalogModal({
         </ScrollArea>
 
         {/* ── Footer ──────────────────────────────────────────────────── */}
-        <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between shrink-0">
           <p className="text-[10px] text-slate-600 max-w-[70%]">
             <span className="font-semibold text-slate-500">Adequação /10</span> — escala global
             absoluta: ≥9 excelente · 7-8 bom · 5-6 adequado · ≤4 fraco.
