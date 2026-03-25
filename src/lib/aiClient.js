@@ -2,6 +2,8 @@
  * Universal AI client - supports OpenAI-compatible APIs and native Gemini API
  */
 
+import { getModelCost } from './model-config';
+
 export const AI_PRESETS = {
   openrouter: {
     label: 'OpenRouter (todos os modelos)',
@@ -173,4 +175,86 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
   }
 
   return content;
+}
+
+/**
+ * Chama a API do OpenRouter e retorna conteúdo + metadados de uso e custo.
+ * Usa o model ID fornecido ou faz fallback para o modelo padrão da config do usuário.
+ *
+ * @param {object} params
+ * @param {string} params.system              - Prompt de sistema
+ * @param {string} params.user                - Prompt do usuário
+ * @param {object} params.userAIConfig        - { apiKey, baseUrl, model }
+ * @param {string} [params.model]             - Model ID opcional; se omitido usa userAIConfig.model
+ * @param {number} [params.maxTokens]         - Máximo de tokens gerados (padrão: 4000)
+ * @param {number} [params.temperature]       - Temperatura (padrão: 0.3)
+ * @returns {Promise<{content: string, model: string, tokens_in: number, tokens_out: number, cost_usd: number, duration_ms: number}>}
+ */
+export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4000, temperature = 0.3 }) {
+  const { apiKey, baseUrl, model: configModel } = userAIConfig || {};
+
+  if (!apiKey) {
+    throw new Error(
+      'Configure sua chave de IA no perfil antes de gerar campanhas. Acesse Perfil → Configuração de IA.'
+    );
+  }
+
+  const resolvedModel = model || configModel;
+  const resolvedBaseUrl = baseUrl || 'https://openrouter.ai/api/v1';
+
+  if (!resolvedModel) {
+    throw new Error('Nenhum modelo especificado. Configure o modelo no perfil ou passe o parâmetro model.');
+  }
+
+  const startTime = Date.now();
+
+  const body = {
+    model: resolvedModel,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user }
+    ],
+    max_tokens: maxTokens,
+    temperature
+  };
+
+  const response = await fetch(`${resolvedBaseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'OmniForge RPG'
+    },
+    body: JSON.stringify(body)
+  });
+
+  const duration_ms = Date.now() - startTime;
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(
+      err?.error?.message || `Erro na API de IA: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+
+  if (!content) {
+    throw new Error('Resposta vazia da API de IA');
+  }
+
+  const tokens_in = data.usage?.prompt_tokens ?? 0;
+  const tokens_out = data.usage?.completion_tokens ?? 0;
+  const cost_usd = getModelCost(resolvedModel, tokens_in, tokens_out);
+
+  return {
+    content,
+    model: resolvedModel,
+    tokens_in,
+    tokens_out,
+    cost_usd,
+    duration_ms
+  };
 }
