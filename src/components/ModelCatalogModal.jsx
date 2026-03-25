@@ -61,7 +61,7 @@ const TIER_CONFIG = {
   premium: { label: 'Premium', icon: '💎', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' },
 };
 
-const CATEGORIES = ['extraction', 'synthesis', 'reasoning', 'writing'];
+const CATEGORIES = Object.keys(CATEGORY_LABELS);
 
 // ---------------------------------------------------------------------------
 // Helpers
