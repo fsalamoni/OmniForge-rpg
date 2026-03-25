@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { AGENT_IDS, buildPrompt, getAgentConfig } from '@/lib/aiAgents';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,8 +45,9 @@ export default function SceneEncounterDialog({ open, onOpenChange, campaign, onE
   };
 
   const handleGenerateAI = async () => {
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de gerar encontros.');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
     setLoading(true);

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useAuth } from '@/lib/AuthContext';
 import { Campaign, CampaignStep, NpcCreature, RpgSystem, AiAgent } from '@/firebase/db';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import {
   AGENT_IDS,
   QUESTION_KEY_TO_AGENT,
@@ -263,11 +263,12 @@ export default function Generator() {
 
   // ─── Auto-fill com IA (admin only) ──────────────────────────────────────────
   const handleAiFillQuestion = async (questionKey) => {
-    const aiConfig = userProfile?.aiConfig;
-    if (!aiConfig?.apiKey || !aiConfig?.baseUrl || !aiConfig?.model) {
-      alert('Configure sua chave de IA, URL base e modelo no Perfil antes de usar o auto-preenchimento.\n\nAcesse: Perfil → Configuração de IA');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
+    const aiConfig = userProfile.aiConfig;
 
     setAiFillingKey(questionKey);
     try {
@@ -320,11 +321,12 @@ export default function Generator() {
 
   // ─── Preencher TODAS as respostas com IA (admin only) ──────────────────────
   const handleAiFillAll = async () => {
-    const aiConfig = userProfile?.aiConfig;
-    if (!aiConfig?.apiKey || !aiConfig?.baseUrl || !aiConfig?.model) {
-      alert('Configure sua chave de IA, URL base e modelo no Perfil antes de usar o auto-preenchimento.\n\nAcesse: Perfil → Configuração de IA');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
+    const aiConfig = userProfile.aiConfig;
 
     // Garante que a campanha existe antes de começar
     let campaignIdToUse = activeCampaignId;
@@ -430,11 +432,12 @@ export default function Generator() {
   const handleFinalGeneration = async () => {
     if (!activeCampaignId) return;
 
-    const aiConfig = userProfile?.aiConfig;
-    if (!aiConfig?.apiKey || !aiConfig?.baseUrl || !aiConfig?.model) {
-      alert('Configure sua chave de IA, URL base e modelo no Perfil antes de gerar campanhas.\n\nAcesse: Perfil → Configuração de IA');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
+    const aiConfig = userProfile.aiConfig;
 
     setGenerating(true);
     try {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, ChevronUp } from 'lucide-react';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { useAuth } from '@/lib/AuthContext';
 
 /**
@@ -33,8 +33,9 @@ export default function AIExpander({
   };
 
   const handleExpand = async () => {
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de usar esta funcionalidade.');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
     setLoading(true);

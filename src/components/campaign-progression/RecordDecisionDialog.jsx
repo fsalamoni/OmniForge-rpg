@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Sparkles, TrendingUp, TrendingDown, Minus, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Campaign, NpcCreature, SessionLog } from '@/firebase/db';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { useAuth } from '@/lib/AuthContext';
 
 // Step: 'form' | 'reviewing' | 'saving'
@@ -70,7 +70,13 @@ export default function RecordDecisionDialog({ open, onOpenChange, campaignId, o
     }
     setLoading(true);
     try {
-      if (generateConsequences && campaign && userProfile?.aiConfig) {
+      if (generateConsequences && campaign) {
+        const configError = validateAIConfig(userProfile?.aiConfig);
+        if (configError) {
+          alert(configError);
+          setLoading(false);
+          return;
+        }
         const recentHistory = sessionLogs
           .slice(-5)
           .map(log => `${log.event_type}: ${log.description} - ${log.player_choice}`)
@@ -269,7 +275,7 @@ Seja específico, dramático e crie conexões causais fortes.`;
           <p className="text-slate-400 text-xs mt-1">
             A IA analisará o evento e gerará impactos nos stakeholders, WBS e novos eventos narrativos.
             Você poderá revisar antes de aplicar.
-            {!userProfile?.aiConfig && <span className="text-amber-400"> Configure sua chave de IA no perfil para usar.</span>}
+            {!!validateAIConfig(userProfile?.aiConfig) && <span className="text-amber-400"> Configure sua chave de IA no perfil para usar.</span>}
           </p>
         </div>
       </div>
@@ -291,7 +297,7 @@ Seja específico, dramático e crie conexões causais fortes.`;
           ) : (
             <>
               <Sparkles className="w-4 h-4 mr-2" />
-              {generateConsequences && userProfile?.aiConfig ? 'Gerar e Revisar' : 'Registrar Evento'}
+              {generateConsequences && !validateAIConfig(userProfile?.aiConfig) ? 'Gerar e Revisar' : 'Registrar Evento'}
             </>
           )}
         </Button>
