@@ -2,22 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
 import { AI_PRESETS, invokeLLM } from '@/lib/aiClient';
-import { AVAILABLE_MODELS } from '@/lib/model-config';
+import { useCatalogModels } from '@/lib/model-catalog';
 import { useMutation } from '@tanstack/react-query';
+import ModelCatalogModal from '@/components/ModelCatalogModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
 import {
   User,
   Mail,
@@ -31,8 +23,7 @@ import {
   CheckCircle,
   AlertCircle,
   FlaskConical,
-  ChevronDown,
-  Check,
+  BookOpen,
 } from 'lucide-react';
 
 export default function Profile() {
@@ -50,7 +41,12 @@ export default function Profile() {
   const [saveSuccess, setSaveSuccess] = useState('');
   const [testStatus, setTestStatus] = useState(null); // null | 'testing' | 'ok' | 'error'
   const [testError, setTestError] = useState('');
-  const [modelComboOpen, setModelComboOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+
+  // Use the catalog hook to get both static + dynamic (OpenRouter) models
+  const { models: catalogModels } = useCatalogModels(
+    aiProvider === 'openrouter' ? aiConfig.apiKey : undefined
+  );
 
   // Sync local state when userProfile loads asynchronously from Firestore
   useEffect(() => {
@@ -345,85 +341,28 @@ export default function Profile() {
                 </Select>
               ) : aiProvider === 'openrouter' ? (
                 <>
-                  <Popover open={modelComboOpen} onOpenChange={setModelComboOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      >
-                        <span className={aiConfig.model ? 'text-white' : 'text-slate-500'}>
-                          {aiConfig.model
-                            ? (AVAILABLE_MODELS.find((m) => m.id === aiConfig.model)?.label ?? aiConfig.model)
-                            : 'Selecione ou digite um modelo...'}
-                        </span>
-                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-slate-400" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className="w-[var(--radix-popover-trigger-width)] p-0 bg-slate-900 border-slate-700"
-                      align="start"
-                    >
-                      <Command className="bg-slate-900">
-                        <CommandInput
-                          placeholder="Buscar modelo..."
-                          className="text-white placeholder:text-slate-500"
-                        />
-                        <CommandList className="max-h-72">
-                          <CommandEmpty className="text-slate-400 py-4 text-center text-sm">
-                            Nenhum modelo encontrado. Você pode digitar o ID diretamente abaixo.
-                          </CommandEmpty>
-                          {['free', 'fast', 'balanced', 'premium'].map((tier) => {
-                            const tierModels = AVAILABLE_MODELS.filter((m) =>
-                              tier === 'free' ? m.isFree : m.tier === tier && !m.isFree
-                            );
-                            if (tierModels.length === 0) return null;
-                            const tierLabel = {
-                              free: '🆓 Gratuitos',
-                              fast: '⚡ Rápidos',
-                              balanced: '⚖️ Balanceados',
-                              premium: '💎 Premium',
-                            }[tier];
-                            return (
-                              <CommandGroup key={tier} heading={tierLabel}>
-                                {tierModels.map((m) => (
-                                  <CommandItem
-                                    key={m.id}
-                                    value={`${m.label} ${m.provider} ${m.id}`}
-                                    onSelect={() => {
-                                      setAiConfig({ ...aiConfig, model: m.id });
-                                      setTestStatus(null);
-                                      setModelComboOpen(false);
-                                    }}
-                                    className="text-slate-200 data-[selected=true]:bg-slate-800 data-[selected=true]:text-white cursor-pointer"
-                                  >
-                                    <Check
-                                      className={`mr-2 h-4 w-4 shrink-0 ${aiConfig.model === m.id ? 'opacity-100 text-purple-400' : 'opacity-0'}`}
-                                    />
-                                    <div className="flex flex-1 flex-col min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium truncate">{m.label}</span>
-                                        <span className="text-xs text-slate-500 shrink-0">{m.provider}</span>
-                                      </div>
-                                      <span className="text-xs text-slate-500 font-mono truncate">
-                                        {m.id}
-                                        {m.isFree ? (
-                                          <span className="ml-2 text-green-400">grátis</span>
-                                        ) : (
-                                          <span className="ml-2">
-                                            ${m.inputCost}/M in · ${m.outputCost}/M out
-                                          </span>
-                                        )}
-                                      </span>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            );
-                          })}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <button
+                    type="button"
+                    onClick={() => setCatalogOpen(true)}
+                    className="flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <span className={aiConfig.model ? 'text-white' : 'text-slate-500'}>
+                      {aiConfig.model
+                        ? (catalogModels.find((m) => m.id === aiConfig.model)?.label ?? aiConfig.model)
+                        : 'Clique para abrir o catálogo de modelos...'}
+                    </span>
+                    <BookOpen className="ml-2 h-4 w-4 shrink-0 text-purple-400" />
+                  </button>
+                  <ModelCatalogModal
+                    open={catalogOpen}
+                    onOpenChange={setCatalogOpen}
+                    models={catalogModels}
+                    selectedModelId={aiConfig.model}
+                    onSelect={(model) => {
+                      setAiConfig({ ...aiConfig, model: model.id });
+                      setTestStatus(null);
+                    }}
+                  />
                   <div className="mt-2">
                     <Input
                       value={aiConfig.model}

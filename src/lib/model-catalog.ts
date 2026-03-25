@@ -62,26 +62,61 @@ export function inferTier(id: string, name: string): 'fast' | 'balanced' | 'prem
 }
 
 /**
- * Infere fit scores por categoria com base no tier e ID do modelo.
- * Modelos de raciocínio (r1/r2/o3/o4/think) recebem scores especiais.
+ * Infere fit scores por categoria com base no tier, ID e nome do modelo.
+ * Usa heurísticas mais granulares para scores realistas entre modelos.
  */
 export function inferFitScores(
   tier: 'fast' | 'balanced' | 'premium',
-  id: string
+  id: string,
+  _name?: string,
 ): ModelOption['agentFit'] {
-  const isReasoning = /\b(r1|r2|o3|o4|think|reasoning)\b/.test(id.toLowerCase());
+  const lower = id.toLowerCase();
+  const isReasoning = /\b(r1|r2|o3|o4|think|reasoning)\b/.test(lower);
+  const isCoder = /\b(coder|code|starcoder)\b/.test(lower);
+  const isFree = lower.includes(':free');
+
+  // Penalty for free models (typically rate-limited or older snapshots)
+  const freeOffset = isFree ? -1 : 0;
 
   if (isReasoning) {
-    return { extraction: 3, synthesis: 6, reasoning: 9, writing: 6 };
+    return {
+      extraction: Math.max(1, 3 + freeOffset),
+      synthesis:  Math.max(1, 6 + freeOffset),
+      reasoning:  Math.max(1, 9 + freeOffset),
+      writing:    Math.max(1, 6 + freeOffset),
+    };
+  }
+  if (isCoder) {
+    return {
+      extraction: Math.max(1, 8 + freeOffset),
+      synthesis:  Math.max(1, 4 + freeOffset),
+      reasoning:  Math.max(1, 6 + freeOffset),
+      writing:    Math.max(1, 3 + freeOffset),
+    };
   }
   if (tier === 'fast') {
-    return { extraction: 8, synthesis: 5, reasoning: 4, writing: 5 };
+    return {
+      extraction: Math.max(1, 7 + freeOffset),
+      synthesis:  Math.max(1, 4 + freeOffset),
+      reasoning:  Math.max(1, 3 + freeOffset),
+      writing:    Math.max(1, 4 + freeOffset),
+    };
   }
   if (tier === 'premium') {
-    return { extraction: 6, synthesis: 9, reasoning: 9, writing: 9 };
+    return {
+      extraction: Math.max(1, 7 + freeOffset),
+      synthesis:  Math.max(1, 8 + freeOffset),
+      reasoning:  Math.max(1, 8 + freeOffset),
+      writing:    Math.max(1, 8 + freeOffset),
+    };
   }
   // balanced
-  return { extraction: 7, synthesis: 7, reasoning: 7, writing: 7 };
+  return {
+    extraction: Math.max(1, 7 + freeOffset),
+    synthesis:  Math.max(1, 6 + freeOffset),
+    reasoning:  Math.max(1, 6 + freeOffset),
+    writing:    Math.max(1, 6 + freeOffset),
+  };
 }
 
 /** Extrai o nome do provedor a partir do model ID ("provider/model-name"). */
@@ -120,7 +155,7 @@ export function openRouterToModelOption(or: OpenRouterModel): ModelOption {
   const outputCost = isFree ? 0 : parseFloat(or.pricing?.completion ?? '0') * 1_000_000;
 
   const tier = inferTier(or.id, or.name ?? '');
-  const agentFit = inferFitScores(tier, or.id);
+  const agentFit = inferFitScores(tier, or.id, or.name ?? '');
 
   return {
     id: or.id,
