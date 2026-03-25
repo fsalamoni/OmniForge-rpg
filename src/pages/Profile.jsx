@@ -30,12 +30,27 @@ import {
   Download,
 } from 'lucide-react';
 
+const DEFAULT_AI_PROVIDER = 'openrouter';
+
+/** Maps a saved baseUrl back to the corresponding AI_PRESETS key. */
+function detectProviderFromUrl(baseUrl) {
+  if (!baseUrl) return DEFAULT_AI_PROVIDER;
+  for (const [key, preset] of Object.entries(AI_PRESETS)) {
+    if (key !== 'custom' && preset.baseUrl && baseUrl === preset.baseUrl) {
+      return key;
+    }
+  }
+  return 'custom';
+}
+
 export default function Profile() {
   const { user, userProfile, refreshProfile } = useAuth();
   const [formData, setFormData] = useState({
     full_name: userProfile?.full_name || user?.displayName || ''
   });
-  const [aiProvider, setAiProvider] = useState('openrouter');
+  const [aiProvider, setAiProvider] = useState(() =>
+    detectProviderFromUrl(userProfile?.aiConfig?.baseUrl)
+  );
   const [aiConfig, setAiConfig] = useState({
     baseUrl: userProfile?.aiConfig?.baseUrl || AI_PRESETS.openrouter.baseUrl,
     apiKey: userProfile?.aiConfig?.apiKey || '',
@@ -71,11 +86,13 @@ export default function Profile() {
     if (!userProfile) return;
     setFormData({ full_name: userProfile.full_name || user?.displayName || '' });
     if (userProfile.aiConfig) {
+      const savedBaseUrl = userProfile.aiConfig.baseUrl || AI_PRESETS.openrouter.baseUrl;
       setAiConfig({
-        baseUrl: userProfile.aiConfig.baseUrl || AI_PRESETS.openrouter.baseUrl,
+        baseUrl: savedBaseUrl,
         apiKey: userProfile.aiConfig.apiKey || '',
         model: userProfile.aiConfig.model || ''
       });
+      setAiProvider(detectProviderFromUrl(savedBaseUrl));
     }
     // Load custom model IDs from Firestore
     if (Array.isArray(userProfile.customModelIds)) {
