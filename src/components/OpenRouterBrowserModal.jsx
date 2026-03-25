@@ -35,6 +35,8 @@ import {
   Layers,
   ArrowUpDown,
   Globe,
+  ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -172,6 +174,11 @@ export default function OpenRouterBrowserModal({
   const [providerFilter, setProviderFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name-asc');
 
+  // "Adicionar por ID" state
+  const [manualId, setManualId] = useState('');
+  const [manualError, setManualError] = useState('');
+  const [manualAdded, setManualAdded] = useState(false);
+
   const userIdSet = useMemo(() => new Set(userModelIds), [userModelIds]);
 
   const providers = useMemo(() => {
@@ -180,7 +187,6 @@ export default function OpenRouterBrowserModal({
   }, [allModels]);
 
   const filteredModels = useMemo(() => {
-    // Include all models, marking those already in user catalog with an "added" badge
     let list = [...allModels];
 
     if (search.trim()) {
@@ -223,6 +229,42 @@ export default function OpenRouterBrowserModal({
     [onAddModel]
   );
 
+  const handleAddByManualId = useCallback(() => {
+    const id = manualId.trim();
+    if (!id) {
+      setManualError('Digite o ID do modelo.');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_\-.]+\/[a-zA-Z0-9_\-.:]+$/.test(id)) {
+      setManualError('Formato inválido. Use: provedor/nome-do-modelo');
+      return;
+    }
+    if (userIdSet.has(id)) {
+      setManualError('Este modelo já está no seu catálogo.');
+      return;
+    }
+    // Look up in allModels first; if not found, create a minimal stub
+    const existing = allModels.find((m) => m.id === id);
+    const [providerPart, modelPart] = id.split('/');
+    const modelToAdd = existing ?? {
+      id,
+      label: modelPart ?? id,
+      provider: providerPart ?? 'Custom',
+      tier: 'balanced',
+      description: '',
+      contextWindow: 0,
+      inputCost: 0,
+      outputCost: 0,
+      isFree: id.endsWith(':free'),
+      agentFit: { extraction: 5, synthesis: 5, reasoning: 5, writing: 5 },
+    };
+    onAddModel?.(modelToAdd);
+    setManualId('');
+    setManualError('');
+    setManualAdded(true);
+    setTimeout(() => setManualAdded(false), 2000);
+  }, [manualId, userIdSet, allModels, onAddModel]);
+
   const resetFilters = useCallback(() => {
     setSearch('');
     setPricingFilter('all');
@@ -236,19 +278,61 @@ export default function OpenRouterBrowserModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-800">
           <DialogTitle className="text-xl text-white font-bold flex items-center gap-2">
             <Globe className="w-5 h-5 text-purple-400" />
-            Explorar Modelos OpenRouter
+            Adicionar Modelos ao Catálogo
           </DialogTitle>
-          <DialogDescription className="text-slate-400 text-sm">
-            Navegue por todos os modelos disponíveis no OpenRouter e adicione ao seu catálogo pessoal.
-            {isLoading && <span className="ml-2 text-purple-400">Carregando modelos...</span>}
-            {!isLoading && <span className="ml-2">{allModels.length} modelos disponíveis</span>}
+          <DialogDescription className="text-slate-400 text-sm flex items-center gap-3 flex-wrap">
+            {isLoading
+              ? <span className="text-purple-400">Carregando modelos do OpenRouter...</span>
+              : <span>{filteredModels.length} de {allModels.length} modelos do OpenRouter</span>
+            }
+            <a
+              href="https://openrouter.ai/models"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 text-xs ml-auto"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Ver no OpenRouter
+            </a>
           </DialogDescription>
         </DialogHeader>
+
+        {/* Add by ID */}
+        <div className="px-6 py-3 border-b border-slate-800 bg-amber-900/10">
+          <p className="text-[11px] text-amber-400 flex items-center gap-1 mb-2">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Adicionar por ID (para modelos não listados abaixo):
+          </p>
+          <div className="flex gap-2">
+            <Input
+              value={manualId}
+              onChange={(e) => { setManualId(e.target.value); setManualError(''); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddByManualId()}
+              placeholder="ex: openai/gpt-4o ou deepseek/deepseek-v3"
+              className="bg-slate-950/50 border-slate-700 text-white text-sm placeholder:text-slate-600 font-mono"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAddByManualId}
+              className={manualAdded
+                ? 'bg-green-600 hover:bg-green-500 text-white shrink-0'
+                : 'bg-purple-600 hover:bg-purple-500 text-white shrink-0'
+              }
+            >
+              {manualAdded ? <Check className="w-4 h-4 mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
+              {manualAdded ? 'Adicionado!' : 'Adicionar'}
+            </Button>
+          </div>
+          {manualError && (
+            <p className="text-[11px] text-red-400 mt-1">{manualError}</p>
+          )}
+        </div>
 
         {/* Filters */}
         <div className="px-6 py-3 border-b border-slate-800 space-y-3">
@@ -390,7 +474,7 @@ export default function OpenRouterBrowserModal({
         {/* Footer */}
         <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between">
           <p className="text-[10px] text-slate-600 max-w-[70%]">
-            Modelos adicionados ficam permanentemente no seu catálogo pessoal.
+            Após adicionar, salve o catálogo. Os modelos adicionados ficam disponíveis em todos os seletores de agentes.
             Preços em USD/1M tokens (OpenRouter).
           </p>
           <Button
