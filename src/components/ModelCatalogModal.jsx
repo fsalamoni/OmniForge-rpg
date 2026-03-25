@@ -372,7 +372,7 @@ export default function ModelCatalogModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
         <TooltipProvider delayDuration={200}>
         {/* ── Header ──────────────────────────────────────────────────── */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-800">

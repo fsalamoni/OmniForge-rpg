@@ -329,6 +329,92 @@ MODEL_REGISTRY: dict[str, ModelInfo] = {
         output_cost=0.0,
         context_window=131_072,
     ),
+
+    # ── Gemini (extras) ─────────────────────────────────────────────────
+    "google/gemini-pro-1.5": ModelInfo(
+        name="Gemini 1.5 Pro",
+        input_cost=1.25,
+        output_cost=5.0,
+        context_window=2_000_000,
+    ),
+
+    # ── Meta (extras) ───────────────────────────────────────────────────
+    "meta-llama/llama-3.1-70b-instruct": ModelInfo(
+        name="Llama 3.1 70B Instruct",
+        input_cost=0.08,
+        output_cost=0.29,
+        context_window=131_072,
+    ),
+    "meta-llama/llama-3.2-90b-vision-instruct": ModelInfo(
+        name="Llama 3.2 90B Vision",
+        input_cost=0.9,
+        output_cost=0.9,
+        context_window=131_072,
+    ),
+
+    # ── Mistral (extras) ────────────────────────────────────────────────
+    "mistralai/mixtral-8x7b-instruct": ModelInfo(
+        name="Mixtral 8x7B Instruct",
+        input_cost=0.24,
+        output_cost=0.24,
+        context_window=32_768,
+    ),
+    "mistralai/mixtral-8x22b-instruct": ModelInfo(
+        name="Mixtral 8x22B Instruct",
+        input_cost=0.9,
+        output_cost=0.9,
+        context_window=65_536,
+    ),
+    "mistralai/mistral-nemo": ModelInfo(
+        name="Mistral Nemo",
+        input_cost=0.13,
+        output_cost=0.13,
+        context_window=128_000,
+    ),
+    "mistralai/mistral-nemo:free": ModelInfo(
+        name="Mistral Nemo (Free)",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=128_000,
+    ),
+
+    # ── xAI (extras) ────────────────────────────────────────────────────
+    "x-ai/grok-2-1212": ModelInfo(
+        name="Grok 2",
+        input_cost=2.0,
+        output_cost=10.0,
+        context_window=131_072,
+    ),
+
+    # ── DeepSeek (distilados) ────────────────────────────────────────────
+    "deepseek/deepseek-r1-distill-llama-70b": ModelInfo(
+        name="DeepSeek R1 Distill 70B",
+        input_cost=0.23,
+        output_cost=0.69,
+        context_window=131_072,
+    ),
+    "deepseek/deepseek-r1-distill-qwen-32b": ModelInfo(
+        name="DeepSeek R1 Distill 32B",
+        input_cost=0.18,
+        output_cost=0.18,
+        context_window=131_072,
+    ),
+
+    # ── Nous Research (extras) ───────────────────────────────────────────
+    "nousresearch/hermes-3-llama-3.1-405b:free": ModelInfo(
+        name="Hermes 3 405B (Free)",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=131_072,
+    ),
+
+    # ── Google Gemma (extras) ────────────────────────────────────────────
+    "google/gemma-3-12b-it:free": ModelInfo(
+        name="Gemma 3 12B (Free)",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=131_072,
+    ),
 }
 
 

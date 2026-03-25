@@ -27,7 +27,7 @@ import {
   AlertCircle,
   FlaskConical,
   BookOpen,
-  Globe,
+  Download,
 } from 'lucide-react';
 
 export default function Profile() {
@@ -422,11 +422,11 @@ export default function Profile() {
                       variant="outline"
                       size="sm"
                       onClick={() => setBrowserOpen(true)}
-                      className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
-                      title="Explorar todos os modelos do OpenRouter"
+                      className="border-purple-600/50 text-purple-300 hover:text-white hover:bg-purple-800/30 shrink-0"
+                      title="Adicionar modelos do OpenRouter ao catálogo"
                     >
-                      <Globe className="w-4 h-4 mr-1.5" />
-                      Explorar
+                      <Download className="w-4 h-4 mr-1.5" />
+                      Adicionar do OpenRouter
                     </Button>
                   </div>
                   <ModelCatalogModal
