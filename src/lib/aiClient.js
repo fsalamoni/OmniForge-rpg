@@ -52,6 +52,32 @@ export function isGeminiUrl(baseUrl) {
   return typeof baseUrl === 'string' && baseUrl.includes('generativelanguage.googleapis.com');
 }
 
+/**
+ * Validates the AI configuration object.
+ * Returns null if valid, or an error message string if invalid.
+ * @param {object} aiConfig - { apiKey, baseUrl, model }
+ * @returns {string|null} Error message or null if valid
+ */
+export function validateAIConfig(aiConfig) {
+  if (!aiConfig) {
+    return 'Configure sua chave de IA, URL base e modelo no Perfil antes de usar esta funcionalidade.\n\nAcesse: Perfil → Configuração de IA';
+  }
+  const missing = [];
+  if (!aiConfig.apiKey || typeof aiConfig.apiKey !== 'string' || !aiConfig.apiKey.trim()) {
+    missing.push('chave de API');
+  }
+  if (!aiConfig.baseUrl || typeof aiConfig.baseUrl !== 'string' || !aiConfig.baseUrl.trim()) {
+    missing.push('URL base');
+  }
+  if (!aiConfig.model || typeof aiConfig.model !== 'string' || !aiConfig.model.trim()) {
+    missing.push('modelo');
+  }
+  if (missing.length > 0) {
+    return `Configure ${missing.join(', ')} no Perfil antes de usar esta funcionalidade.\n\nAcesse: Perfil → Configuração de IA`;
+  }
+  return null;
+}
+
 /** Normalize any Gemini baseUrl variant to the v1beta root (strips /openai suffix if present) */
 export function geminiApiBase(baseUrl) {
   return baseUrl.replace(/\/openai\/?$/, '').replace(/\/$/, '');
@@ -69,8 +95,9 @@ export function geminiApiBase(baseUrl) {
  * @returns {Promise<object|string>} Parsed JSON if responseSchema provided, string otherwise
  */
 export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPrompt, temperature, agentKey, agentModels }) {
-  const { apiKey: _apiKey, baseUrl, model: configModel } = userAIConfig || {};
-  const apiKey = _apiKey?.trim();
+  const { apiKey: _apiKey, baseUrl: _baseUrl, model: configModel } = userAIConfig || {};
+  const apiKey = (typeof _apiKey === 'string') ? _apiKey.trim() : '';
+  const baseUrl = (typeof _baseUrl === 'string') ? _baseUrl.trim() : '';
 
   // Resolve model: per-agent override > config model
   const model = (agentKey && agentModels?.[agentKey]) || configModel;
@@ -113,7 +140,13 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
 
     if (!geminiResponse.ok) {
       const err = await geminiResponse.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `Erro na API Gemini: ${geminiResponse.status} ${geminiResponse.statusText}`);
+      const errorMessage = err?.error?.message || `Erro na API Gemini: ${geminiResponse.status} ${geminiResponse.statusText}`;
+      if (geminiResponse.status === 401 || geminiResponse.status === 403 || /auth|unauthorized|forbidden|api.key/i.test(errorMessage)) {
+        throw new Error(
+          `Erro de autenticação com a API Gemini: ${errorMessage}\n\nVerifique se sua chave de API está correta em Perfil → Configuração de IA.`
+        );
+      }
+      throw new Error(errorMessage);
     }
 
     const geminiData = await geminiResponse.json();
@@ -162,9 +195,13 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err?.error?.message || `Erro na API de IA: ${response.status} ${response.statusText}`
-    );
+    const errorMessage = err?.error?.message || `Erro na API de IA: ${response.status} ${response.statusText}`;
+    if (response.status === 401 || response.status === 403 || /auth|unauthorized|forbidden/i.test(errorMessage)) {
+      throw new Error(
+        `Erro de autenticação com a API de IA: ${errorMessage}\n\nVerifique se sua chave de API está correta em Perfil → Configuração de IA.`
+      );
+    }
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();
@@ -202,7 +239,7 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
  */
 export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4000, temperature = 0.3 }) {
   const { apiKey: _apiKey, baseUrl, model: configModel } = userAIConfig || {};
-  const apiKey = _apiKey?.trim();
+  const apiKey = (typeof _apiKey === 'string') ? _apiKey.trim() : '';
 
   if (!apiKey) {
     throw new Error(
@@ -244,9 +281,13 @@ export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err?.error?.message || `Erro na API de IA: ${response.status} ${response.statusText}`
-    );
+    const errorMessage = err?.error?.message || `Erro na API de IA: ${response.status} ${response.statusText}`;
+    if (response.status === 401 || response.status === 403 || /auth|unauthorized|forbidden/i.test(errorMessage)) {
+      throw new Error(
+        `Erro de autenticação com a API de IA: ${errorMessage}\n\nVerifique se sua chave de API está correta em Perfil → Configuração de IA.`
+      );
+    }
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();

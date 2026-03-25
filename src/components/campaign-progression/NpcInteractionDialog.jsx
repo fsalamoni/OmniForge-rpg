@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, MessageCircle, Sparkles } from 'lucide-react';
 import { Campaign, SessionLog, NpcCreature } from '@/firebase/db';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function NpcInteractionDialog({ open, onOpenChange, npc, campaignId }) {
@@ -39,6 +39,12 @@ export default function NpcInteractionDialog({ open, onOpenChange, npc, campaign
 
   const handleSendMessage = async () => {
     if (!playerMessage.trim() || loading) return;
+
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
+      return;
+    }
 
     const userMessage = { role: 'player', content: playerMessage };
     setConversation(prev => [...prev, userMessage]);
@@ -184,7 +190,7 @@ RESPONDA COMO ${npc.name} REAGIRIA REALISTICAMENTE.`;
                   <Sparkles className="w-12 h-12 mx-auto mb-3 text-purple-400" />
                   <p>Inicie a conversa com {npc.name}</p>
                   <p className="text-xs mt-2">As respostas são geradas dinamicamente pela IA baseadas no estado da campanha</p>
-                  {!userProfile?.aiConfig?.apiKey && (
+                  {!!validateAIConfig(userProfile?.aiConfig) && (
                     <p className="text-xs mt-2 text-amber-400">Configure sua chave de IA no perfil para usar esta funcionalidade</p>
                   )}
                 </div>
@@ -231,11 +237,11 @@ RESPONDA COMO ${npc.name} REAGIRIA REALISTICAMENTE.`;
               }}
               placeholder="Digite sua mensagem... (Enter para enviar, Shift+Enter para nova linha)"
               className="flex-1 min-h-[80px] bg-slate-950/50 border-slate-700 text-white resize-none"
-              disabled={loading || !userProfile?.aiConfig?.apiKey}
+              disabled={loading || !!validateAIConfig(userProfile?.aiConfig)}
             />
             <Button
               onClick={handleSendMessage}
-              disabled={loading || !playerMessage.trim() || !userProfile?.aiConfig?.apiKey}
+              disabled={loading || !playerMessage.trim() || !!validateAIConfig(userProfile?.aiConfig)}
               className="bg-purple-600 hover:bg-purple-700 self-end"
             >
               {loading ? (

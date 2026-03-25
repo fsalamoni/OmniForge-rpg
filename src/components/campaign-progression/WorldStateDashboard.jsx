@@ -16,7 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Campaign, NpcCreature, SessionLog } from '@/firebase/db';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function WorldStateDashboard({ campaignId, isOwner }) {
@@ -86,7 +86,12 @@ export default function WorldStateDashboard({ campaignId, isOwner }) {
   };
 
   const generateEmergentEvent = async () => {
-    if (!isOwner || !userProfile?.aiConfig) return;
+    if (!isOwner) return;
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
+      return;
+    }
 
     setGeneratingEvent(true);
     try {
@@ -218,7 +223,7 @@ Responda em JSON com exatamente esta estrutura:
             {isOwner && (
               <Button
                 onClick={generateEmergentEvent}
-                disabled={generatingEvent || !userProfile?.aiConfig}
+                disabled={generatingEvent || !!validateAIConfig(userProfile?.aiConfig)}
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 {generatingEvent ? (

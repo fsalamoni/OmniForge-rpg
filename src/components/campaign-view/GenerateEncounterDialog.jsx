@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { AiAgent, Campaign } from '@/firebase/db';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { AGENT_IDS, buildPrompt, getAgentConfig } from '@/lib/aiAgents';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -25,8 +25,9 @@ export default function GenerateEncounterDialog({ campaignId, campaign, onEncoun
   }, [open]);
 
   const handleGenerate = async () => {
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de gerar encontros.');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
 

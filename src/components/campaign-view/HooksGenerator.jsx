@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Anchor, Sparkles, Loader2, X } from 'lucide-react';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function HooksGenerator({ campaignId, description, answers5W2H, systemRpg, setting, onHooksGenerated }) {
@@ -16,8 +16,9 @@ export default function HooksGenerator({ campaignId, description, answers5W2H, s
   const { userProfile } = useAuth();
 
   const handleGenerate = async () => {
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de usar esta funcionalidade.');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
     setGenerating(true);

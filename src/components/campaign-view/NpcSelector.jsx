@@ -4,7 +4,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, Loader2, Sparkles } from 'lucide-react';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { NpcCreature } from '@/firebase/db';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -22,7 +22,7 @@ export default function NpcSelector({ campaignId, description, hooks, arcs, syst
   }, [description]);
 
   const extractNpcNames = async () => {
-    if (!userProfile?.aiConfig) return;
+    if (validateAIConfig(userProfile?.aiConfig)) return;
     setLoading(true);
     try {
       const hooksText = Array.isArray(hooks) ? hooks.map(h => typeof h === 'string' ? h : h.hook || '').join('\n') : '';
@@ -77,8 +77,9 @@ Extraia apenas nomes PRÓPRIOS de personagens. Não inclua tipos genéricos como
 
   const handleCreateSelected = async () => {
     if (selectedNames.length === 0) return;
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de usar esta funcionalidade.');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
     setCreating(true);

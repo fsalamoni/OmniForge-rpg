@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Sparkles, Loader2, CheckCircle2, Circle } from 'lucide-react';
-import { invokeLLM } from '@/lib/aiClient';
+import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
 import { useAuth } from '@/lib/AuthContext';
 
 const MISSION_TYPES = [
@@ -429,8 +429,9 @@ export default function ArcGenerator({ campaignId, description, answers5W2H, hoo
       alert('Por favor, defina um nome para o arco');
       return;
     }
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de usar esta funcionalidade.');
+    const configError = validateAIConfig(userProfile?.aiConfig);
+    if (configError) {
+      alert(configError);
       return;
     }
 
