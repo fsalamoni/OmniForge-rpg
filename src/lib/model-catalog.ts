@@ -287,7 +287,6 @@ export function useUserCatalog(
 } {
   const { models: allModels, isLoading } = useCatalogModels(apiKey);
 
-  const userModels = useState<ModelOption[]>(AVAILABLE_MODELS)[0];
   const [merged, setMerged] = useState<ModelOption[]>(AVAILABLE_MODELS);
 
   useEffect(() => {
@@ -302,8 +301,6 @@ export function useUserCatalog(
       .filter(Boolean) as ModelOption[];
     setMerged([...AVAILABLE_MODELS, ...extraModels]);
   }, [customModelIds, allModels]);
-
-  void userModels; // prevent unused warning
 
   return { userModels: merged, allModels, isLoading };
 }

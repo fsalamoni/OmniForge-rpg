@@ -180,7 +180,7 @@ export default function OpenRouterBrowserModal({
   }, [allModels]);
 
   const filteredModels = useMemo(() => {
-    // Exclude models already in user catalog — show them mixed in with "added" badge
+    // Include all models, marking those already in user catalog with an "added" badge
     let list = [...allModels];
 
     if (search.trim()) {
