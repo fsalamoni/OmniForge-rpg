@@ -23,7 +23,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Tooltip,
   TooltipContent,
@@ -50,7 +49,7 @@ import {
 
 const CATEGORY_LABELS = {
   extraction: { short: 'Ex', full: 'Extração', color: 'bg-purple-600' },
-  synthesis: { short: 'Sí', full: 'Síntese', color: 'bg-blue-600' },
+  synthesis: { short: 'Si', full: 'Síntese', color: 'bg-blue-600' },
   reasoning: { short: 'Ra', full: 'Raciocínio', color: 'bg-amber-600' },
   writing: { short: 'Re', full: 'Redação', color: 'bg-emerald-600' },
 };
@@ -130,6 +129,15 @@ function ScoreBadge({ score, label, fullLabel, isHighlighted }) {
 // Model Row — table-like layout with fixed columns
 // ---------------------------------------------------------------------------
 
+/** Shared truncation style for single-line overflow with ellipsis. */
+const TRUNCATE_STYLE = {
+  display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  minWidth: 0,
+};
+
 function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
   const fit = model.agentFit || { extraction: 5, synthesis: 5, reasoning: 5, writing: 5 };
 
@@ -138,22 +146,28 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
       type="button"
       onClick={() => onSelect(model)}
       className={`
-        w-full text-left px-5 py-3.5 border-b border-slate-800/50 transition-all
+        w-full text-left px-4 py-3 border-b border-slate-800/50 transition-all
         hover:bg-slate-800/60
         ${isSelected ? 'bg-purple-900/20 border-l-2 border-l-purple-500' : ''}
         group
       `}
     >
       {/* Row grid: MODEL | SCORES | CONTEXT | INPUT | OUTPUT */}
-      <div className="flex items-center gap-4">
-        {/* ── Model info (name, badges, description) ── */}
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-semibold text-white text-sm leading-tight truncate block min-w-0">
+      <div className="flex items-center gap-3 w-full" style={{ minWidth: 0 }}>
+        {/* ── Model info (name, badges, description) ── flex-1 */}
+        <div style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={{
+              ...TRUNCATE_STYLE,
+              fontWeight: 600,
+              color: 'white',
+              fontSize: 14,
+              lineHeight: '1.25',
+            }}>
               {model.label}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 mt-1 overflow-hidden">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, overflow: 'hidden', minWidth: 0 }}>
             <Badge
               variant="outline"
               className="text-[10px] px-1.5 py-0 border-slate-600 text-slate-400 shrink-0"
@@ -166,16 +180,21 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
             >
               {TIER_CONFIG[model.tier]?.icon} {TIER_CONFIG[model.tier]?.label || model.tier}
             </Badge>
-            <span className="text-[11px] text-slate-500 truncate flex-1 min-w-0">
+            <span style={{
+              ...TRUNCATE_STYLE,
+              fontSize: 11,
+              color: '#64748b',
+              flex: '1 1 0%',
+            }}>
               {model.description}
             </span>
           </div>
         </div>
 
-        {/* ── Adequação scores (4 badges) — w-[140px] ── */}
-        <div className="flex items-center gap-1 shrink-0 w-[140px] justify-center">
+        {/* ── Adequação scores (4 badges) — 132px ── */}
+        <div style={{ flexShrink: 0, width: 132, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
           {CATEGORIES.map((cat) => (
-            <div key={cat} className="flex flex-col items-center gap-0.5">
+            <div key={cat} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <ScoreBadge
                 score={fit[cat]}
                 label={CATEGORY_LABELS[cat].short}
@@ -189,33 +208,33 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
           ))}
         </div>
 
-        {/* ── Contexto — w-[80px] ── */}
-        <div className="flex items-center gap-1 shrink-0 w-[80px] justify-center text-xs text-slate-400">
-          <Cpu className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-          <div className="flex flex-col items-start leading-tight">
-            <span className="text-slate-300 font-medium">{formatContextWindow(model.contextWindow)}</span>
+        {/* ── Contexto — 76px ── */}
+        <div style={{ flexShrink: 0, width: 76, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+          <Cpu className="w-3.5 h-3.5 text-slate-500" style={{ flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+            <span className="text-slate-300 font-medium text-xs">{formatContextWindow(model.contextWindow)}</span>
             <span className="text-[9px] text-slate-600">tokens</span>
           </div>
         </div>
 
-        {/* ── Entrada (input cost) — w-[85px] ── */}
-        <div className="shrink-0 w-[85px] text-right">
+        {/* ── Entrada (input cost) — 82px ── */}
+        <div style={{ flexShrink: 0, width: 82, textAlign: 'right' }}>
           {model.isFree ? (
             <span className="text-green-400 font-medium text-xs">Grátis</span>
           ) : (
-            <div className="flex flex-col items-end leading-tight">
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
               <span className="text-slate-300 text-xs font-medium">{formatCost(model.inputCost)}</span>
               <span className="text-[9px] text-slate-600">/1M entrada</span>
             </div>
           )}
         </div>
 
-        {/* ── Saída (output cost) — w-[85px] ── */}
-        <div className="shrink-0 w-[85px] text-right">
+        {/* ── Saída (output cost) — 82px ── */}
+        <div style={{ flexShrink: 0, width: 82, textAlign: 'right' }}>
           {model.isFree ? (
             <span className="text-green-400 font-medium text-xs">Grátis</span>
           ) : (
-            <div className="flex flex-col items-end leading-tight">
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
               <span className="text-slate-300 text-xs font-medium">{formatCost(model.outputCost)}</span>
               <span className="text-[9px] text-slate-600">/1M saída</span>
             </div>
@@ -456,9 +475,9 @@ export default function ModelCatalogModal({
         </div>
 
         {/* ── Column headers (table-like) ─────────────────────────────── */}
-        <div className="px-5 py-2 border-b border-slate-800 flex items-center gap-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
-          <div className="flex-1 min-w-0">Modelo</div>
-          <div className="flex items-center gap-1 shrink-0 w-[140px] justify-center">
+        <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>Modelo</div>
+          <div style={{ flexShrink: 0, width: 132, display: 'flex', justifyContent: 'center' }}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="cursor-default">⊕ Adequação /10</span>
@@ -468,19 +487,25 @@ export default function ModelCatalogModal({
               </TooltipContent>
             </Tooltip>
           </div>
-          <div className="shrink-0 w-[80px] text-center flex items-center justify-center gap-1">
+          <div style={{ flexShrink: 0, width: 76, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
             <Cpu className="w-3 h-3" />
             <span>Contexto</span>
           </div>
-          <div className="shrink-0 w-[85px] text-right flex items-center justify-end gap-1">
+          <div style={{ flexShrink: 0, width: 82, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
             <span>⊕ Entrada</span>
           </div>
-          <div className="shrink-0 w-[85px] text-right">Saída</div>
+          <div style={{ flexShrink: 0, width: 82, textAlign: 'right' }}>Saída</div>
         </div>
 
         {/* ── Model list (scrollable) ─────────────────────────────────── */}
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="divide-y divide-slate-800/50">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden model-catalog-scroll"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(148,163,184,0.45) transparent',
+          }}
+        >
+          <div>
             {filteredModels.length === 0 ? (
               <div className="px-6 py-12 text-center text-slate-500">
                 <Cpu className="w-10 h-10 mx-auto mb-3 text-slate-600" />
@@ -505,7 +530,7 @@ export default function ModelCatalogModal({
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* ── Footer ──────────────────────────────────────────────────── */}
         <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between shrink-0">

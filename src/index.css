@@ -86,3 +86,17 @@
     @apply bg-background text-foreground;
   }
 }
+/* ── Model Catalog Modal scrollable list — webkit scrollbar ── */
+.model-catalog-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.model-catalog-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.model-catalog-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 9999px;
+}
+.model-catalog-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.75);
+}
