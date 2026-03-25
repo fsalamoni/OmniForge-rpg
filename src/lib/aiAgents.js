@@ -47,15 +47,26 @@ export const QUESTION_KEY_TO_AGENT = {
 
 /**
  * Substitui {{variavel}} no template pelos valores fornecidos.
+ * Também processa blocos condicionais {{#variavel}}...{{/variavel}}:
+ * o bloco é incluído apenas se o valor da variável for truthy (não-vazio).
  * @param {string} template
  * @param {Record<string, string|number>} variables
  * @returns {string}
  */
 export function buildPrompt(template, variables) {
-  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+  // 1) Resolve blocos condicionais {{#var}}...{{/var}}
+  let result = template.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, key, content) => {
+    const val = variables[key];
+    return (val !== undefined && val !== null && val !== '') ? content : '';
+  });
+
+  // 2) Substitui variáveis simples {{var}}
+  result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     const val = variables[key];
     return val !== undefined && val !== null ? String(val) : match;
   });
+
+  return result;
 }
 
 // ─── Definições Padrão dos Agentes ────────────────────────────────────────────

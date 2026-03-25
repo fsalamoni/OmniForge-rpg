@@ -76,8 +76,12 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
   const model = (agentKey && agentModels?.[agentKey]) || configModel;
 
   if (!apiKey || !baseUrl || !model) {
+    const missing = [];
+    if (!apiKey) missing.push('chave de API');
+    if (!baseUrl) missing.push('URL base');
+    if (!model) missing.push('modelo');
     throw new Error(
-      'Configure sua chave de IA no perfil antes de gerar campanhas. Acesse Perfil → Configuração de IA.'
+      `Configure ${missing.join(', ')} no perfil antes de gerar campanhas. Acesse Perfil → Configuração de IA.`
     );
   }
 

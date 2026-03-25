@@ -263,8 +263,9 @@ export default function Generator() {
 
   // ─── Auto-fill com IA (admin only) ──────────────────────────────────────────
   const handleAiFillQuestion = async (questionKey) => {
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de usar o auto-preenchimento.\n\nAcesse: Perfil → Configuração de IA');
+    const aiConfig = userProfile?.aiConfig;
+    if (!aiConfig?.apiKey || !aiConfig?.baseUrl || !aiConfig?.model) {
+      alert('Configure sua chave de IA, URL base e modelo no Perfil antes de usar o auto-preenchimento.\n\nAcesse: Perfil → Configuração de IA');
       return;
     }
 
@@ -289,7 +290,7 @@ export default function Generator() {
         title: formData.title,
         question_title: QUESTIONS_5W2H.find(q => q.key === questionKey)?.title || '',
         question_description: QUESTIONS_5W2H.find(q => q.key === questionKey)?.description || '',
-        previous_answers: previousAnswers || 'Nenhuma resposta anterior ainda.'
+        previous_answers: previousAnswers || ''
       });
 
       const result = await invokeLLM({
@@ -299,7 +300,9 @@ export default function Generator() {
           properties: { answer: { type: 'string' } },
           required: ['answer']
         },
-        userAIConfig: userProfile.aiConfig,
+        userAIConfig: aiConfig,
+        agentKey: agentId,
+        agentModels: userProfile?.agentModels || {},
         systemPrompt: config.systemPrompt,
         temperature: config.temperature
       });
@@ -317,8 +320,9 @@ export default function Generator() {
 
   // ─── Preencher TODAS as respostas com IA (admin only) ──────────────────────
   const handleAiFillAll = async () => {
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de usar o auto-preenchimento.\n\nAcesse: Perfil → Configuração de IA');
+    const aiConfig = userProfile?.aiConfig;
+    if (!aiConfig?.apiKey || !aiConfig?.baseUrl || !aiConfig?.model) {
+      alert('Configure sua chave de IA, URL base e modelo no Perfil antes de usar o auto-preenchimento.\n\nAcesse: Perfil → Configuração de IA');
       return;
     }
 
@@ -371,7 +375,7 @@ export default function Generator() {
           title: formData.title,
           question_title: question.title,
           question_description: question.description,
-          previous_answers: previousAnswers || 'Nenhuma resposta anterior ainda.'
+          previous_answers: previousAnswers || ''
         });
 
         const result = await invokeLLM({
@@ -381,7 +385,9 @@ export default function Generator() {
             properties: { answer: { type: 'string' } },
             required: ['answer']
           },
-          userAIConfig: userProfile.aiConfig,
+          userAIConfig: aiConfig,
+          agentKey: agentId,
+          agentModels: userProfile?.agentModels || {},
           systemPrompt: config.systemPrompt,
           temperature: config.temperature
         });
@@ -424,8 +430,9 @@ export default function Generator() {
   const handleFinalGeneration = async () => {
     if (!activeCampaignId) return;
 
-    if (!userProfile?.aiConfig) {
-      alert('Configure sua chave de IA no Perfil antes de gerar campanhas.\n\nAcesse: Perfil → Configuração de IA');
+    const aiConfig = userProfile?.aiConfig;
+    if (!aiConfig?.apiKey || !aiConfig?.baseUrl || !aiConfig?.model) {
+      alert('Configure sua chave de IA, URL base e modelo no Perfil antes de gerar campanhas.\n\nAcesse: Perfil → Configuração de IA');
       return;
     }
 
@@ -572,7 +579,9 @@ export default function Generator() {
           },
           required: ['premissa', 'contexto_mundo', 'conflito_central', 'forcas_poder', 'aspectos_campanha', 'relogio_apocalipse', 'plot_hooks', 'npcs', 'encounters']
         },
-        userAIConfig: userProfile.aiConfig,
+        userAIConfig: aiConfig,
+        agentKey: AGENT_IDS.CAMPAIGN_GENERATOR,
+        agentModels: userProfile?.agentModels || {},
         systemPrompt: genConfig.systemPrompt,
         temperature: genConfig.temperature
       });
@@ -944,7 +953,7 @@ export default function Generator() {
             <p className="text-slate-400 text-sm">{CREATIVITY_INSTRUCTIONS[creativityLevel]}</p>
           </div>
 
-          {!userProfile?.aiConfig && (
+          {(!userProfile?.aiConfig?.apiKey || !userProfile?.aiConfig?.baseUrl || !userProfile?.aiConfig?.model) && (
             <div className="p-4 bg-amber-900/20 border border-amber-500/30 rounded-lg">
               <p className="text-amber-300 text-sm">
                 ⚠️ Configure sua chave de IA no{' '}
