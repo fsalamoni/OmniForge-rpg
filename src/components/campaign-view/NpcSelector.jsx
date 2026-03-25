@@ -22,6 +22,7 @@ export default function NpcSelector({ campaignId, description, hooks, arcs, syst
   }, [description]);
 
   const extractNpcNames = async () => {
+    // Silent return: this function is auto-triggered via useEffect, so alerting would be bad UX
     if (validateAIConfig(userProfile?.aiConfig)) return;
     setLoading(true);
     try {
