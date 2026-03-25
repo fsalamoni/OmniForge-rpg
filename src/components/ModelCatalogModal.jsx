@@ -5,6 +5,10 @@
  * (gratuitos/pagos, tier, provedor), scores de adequação por
  * categoria de agente, tamanho de contexto, preços e descrições.
  *
+ * Layout em tabela com colunas de largura fixa para exibir todas
+ * as informações de forma clara: modelo, adequação, contexto,
+ * custo de entrada e custo de saída.
+ *
  * Segue o padrão de design OmniForge (slate-900 + purple accents).
  */
 
@@ -38,7 +42,6 @@ import {
   X,
   Cpu,
   Layers,
-  ArrowUpDown,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -58,15 +61,7 @@ const TIER_CONFIG = {
   premium: { label: 'Premium', icon: '💎', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' },
 };
 
-const SORT_OPTIONS = [
-  { value: 'fit-desc', label: 'Adequação ↓' },
-  { value: 'fit-asc', label: 'Adequação ↑' },
-  { value: 'context-desc', label: 'Contexto ↓' },
-  { value: 'context-asc', label: 'Contexto ↑' },
-  { value: 'price-asc', label: 'Preço ↑' },
-  { value: 'price-desc', label: 'Preço ↓' },
-  { value: 'name-asc', label: 'Nome A-Z' },
-];
+const CATEGORIES = ['extraction', 'synthesis', 'reasoning', 'writing'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -132,48 +127,33 @@ function ScoreBadge({ score, label, fullLabel, isHighlighted }) {
 }
 
 // ---------------------------------------------------------------------------
-// Score Labels (tiny colored dots below badges)
-// ---------------------------------------------------------------------------
-
-function ScoreLabels({ label }) {
-  return (
-    <span className="text-[10px] text-slate-500 leading-none">{label}</span>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Model Row
+// Model Row — table-like layout with fixed columns
 // ---------------------------------------------------------------------------
 
 function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
   const fit = model.agentFit || { extraction: 5, synthesis: 5, reasoning: 5, writing: 5 };
-  const categories = ['extraction', 'synthesis', 'reasoning', 'writing'];
 
   return (
     <button
       type="button"
       onClick={() => onSelect(model)}
       className={`
-        w-full text-left px-4 py-3 border-b border-slate-800/50 transition-all
+        w-full text-left px-5 py-3.5 border-b border-slate-800/50 transition-all
         hover:bg-slate-800/60
         ${isSelected ? 'bg-purple-900/20 border-l-2 border-l-purple-500' : ''}
         group
       `}
     >
-      <div className="flex items-center gap-3">
-        {/* Left: Name + metadata */}
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-white text-sm truncate">
+      {/* Row grid: MODEL | SCORES | CONTEXT | INPUT | OUTPUT */}
+      <div className="flex items-center gap-4">
+        {/* ── Model info (name, badges, description) ── */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-white text-sm leading-tight">
               {model.label}
             </span>
-            {model.isFree && (
-              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-1.5 py-0">
-                Grátis
-              </Badge>
-            )}
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             <Badge
               variant="outline"
               className="text-[10px] px-1.5 py-0 border-slate-600 text-slate-400 shrink-0"
@@ -186,15 +166,15 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
             >
               {TIER_CONFIG[model.tier]?.icon} {TIER_CONFIG[model.tier]?.label || model.tier}
             </Badge>
-            <span className="text-xs text-slate-500 truncate hidden sm:block min-w-0">
+            <span className="text-[11px] text-slate-500 truncate block min-w-0">
               {model.description}
             </span>
           </div>
         </div>
 
-        {/* Center: Scores */}
-        <div className="hidden md:flex items-center gap-1 shrink-0">
-          {categories.map((cat) => (
+        {/* ── Adequação scores (4 badges) — w-[140px] ── */}
+        <div className="flex items-center gap-1 shrink-0 w-[140px] justify-center">
+          {CATEGORIES.map((cat) => (
             <div key={cat} className="flex flex-col items-center gap-0.5">
               <ScoreBadge
                 score={fit[cat]}
@@ -202,54 +182,45 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
                 fullLabel={CATEGORY_LABELS[cat].full}
                 isHighlighted={highlightCategory === cat}
               />
-              <ScoreLabels label={CATEGORY_LABELS[cat].short} />
+              <span className="text-[9px] text-slate-500 leading-none">
+                {CATEGORY_LABELS[cat].short}
+              </span>
             </div>
           ))}
         </div>
 
-        {/* Right: Context + Price */}
-        <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 shrink-0">
-          <div className="flex items-center gap-1" title="Janela de contexto">
-            <Cpu className="w-3.5 h-3.5 text-slate-500" />
-            <span>{formatContextWindow(model.contextWindow)}</span>
-          </div>
-          <div className="flex flex-col items-end min-w-[70px]">
-            <span className="text-slate-300">
-              {model.isFree ? (
-                <span className="text-green-400 font-medium">Grátis</span>
-              ) : (
-                <>
-                  {formatCost(model.inputCost)}
-                  <span className="text-slate-600 text-[10px]"> /1M in</span>
-                </>
-              )}
-            </span>
-            {!model.isFree && (
-              <span>
-                {formatCost(model.outputCost)}
-                <span className="text-slate-600 text-[10px]"> /1M out</span>
-              </span>
-            )}
+        {/* ── Contexto — w-[80px] ── */}
+        <div className="flex items-center gap-1 shrink-0 w-[80px] justify-center text-xs text-slate-400">
+          <Cpu className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <div className="flex flex-col items-start leading-tight">
+            <span className="text-slate-300 font-medium">{formatContextWindow(model.contextWindow)}</span>
+            <span className="text-[9px] text-slate-600">tokens</span>
           </div>
         </div>
-      </div>
 
-      {/* Mobile: Scores + info row */}
-      <div className="flex md:hidden items-center gap-1 mt-2">
-        {categories.map((cat) => (
-          <div key={cat} className="flex items-center gap-0.5">
-            <ScoreBadge
-              score={fit[cat]}
-              label={CATEGORY_LABELS[cat].short}
-              fullLabel={CATEGORY_LABELS[cat].full}
-              isHighlighted={highlightCategory === cat}
-            />
-            <ScoreLabels label={CATEGORY_LABELS[cat].short} />
-          </div>
-        ))}
-        <span className="ml-auto text-xs text-slate-500">
-          {formatContextWindow(model.contextWindow)} · {model.isFree ? 'Grátis' : formatCost(model.inputCost)}
-        </span>
+        {/* ── Entrada (input cost) — w-[85px] ── */}
+        <div className="shrink-0 w-[85px] text-right">
+          {model.isFree ? (
+            <span className="text-green-400 font-medium text-xs">Grátis</span>
+          ) : (
+            <div className="flex flex-col items-end leading-tight">
+              <span className="text-slate-300 text-xs font-medium">{formatCost(model.inputCost)}</span>
+              <span className="text-[9px] text-slate-600">/1M entrada</span>
+            </div>
+          )}
+        </div>
+
+        {/* ── Saída (output cost) — w-[85px] ── */}
+        <div className="shrink-0 w-[85px] text-right">
+          {model.isFree ? (
+            <span className="text-green-400 font-medium text-xs">Grátis</span>
+          ) : (
+            <div className="flex flex-col items-end leading-tight">
+              <span className="text-slate-300 text-xs font-medium">{formatCost(model.outputCost)}</span>
+              <span className="text-[9px] text-slate-600">/1M saída</span>
+            </div>
+          )}
+        </div>
       </div>
     </button>
   );
@@ -283,7 +254,6 @@ export default function ModelCatalogModal({
   const [pricingFilter, setPricingFilter] = useState('all'); // 'all' | 'free' | 'paid'
   const [tierFilter, setTierFilter] = useState('all');       // 'all' | 'fast' | 'balanced' | 'premium'
   const [providerFilter, setProviderFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('fit-desc');
 
   const searchRef = useRef(null);
 
@@ -294,7 +264,6 @@ export default function ModelCatalogModal({
       setPricingFilter('all');
       setTierFilter('all');
       setProviderFilter('all');
-      setSortBy('fit-desc');
     }
   }, [open]);
 
@@ -306,7 +275,7 @@ export default function ModelCatalogModal({
     return Array.from(set).sort();
   }, [models]);
 
-  /** Filtered + sorted models. */
+  /** Filtered + sorted models (sorted by agent fit score descending). */
   const filteredModels = useMemo(() => {
     let list = [...models];
 
@@ -332,31 +301,12 @@ export default function ModelCatalogModal({
     // Provider filter
     if (providerFilter !== 'all') list = list.filter((m) => m.provider === providerFilter);
 
-    // Sort
+    // Default sort: by agent fit score descending
     const fitKey = agentCategory || 'synthesis';
-    list.sort((a, b) => {
-      switch (sortBy) {
-        case 'fit-desc':
-          return (b.agentFit?.[fitKey] ?? 0) - (a.agentFit?.[fitKey] ?? 0);
-        case 'fit-asc':
-          return (a.agentFit?.[fitKey] ?? 0) - (b.agentFit?.[fitKey] ?? 0);
-        case 'context-desc':
-          return (b.contextWindow ?? 0) - (a.contextWindow ?? 0);
-        case 'context-asc':
-          return (a.contextWindow ?? 0) - (b.contextWindow ?? 0);
-        case 'price-asc':
-          return (a.inputCost ?? 0) - (b.inputCost ?? 0);
-        case 'price-desc':
-          return (b.inputCost ?? 0) - (a.inputCost ?? 0);
-        case 'name-asc':
-          return a.label.localeCompare(b.label);
-        default:
-          return 0;
-      }
-    });
+    list.sort((a, b) => (b.agentFit?.[fitKey] ?? 0) - (a.agentFit?.[fitKey] ?? 0));
 
     return list;
-  }, [models, search, pricingFilter, tierFilter, providerFilter, sortBy, agentCategory]);
+  }, [models, search, pricingFilter, tierFilter, providerFilter, agentCategory]);
 
   const handleSelect = useCallback(
     (model) => {
@@ -371,7 +321,6 @@ export default function ModelCatalogModal({
     setPricingFilter('all');
     setTierFilter('all');
     setProviderFilter('all');
-    setSortBy('fit-desc');
   }, []);
 
   const hasActiveFilters =
@@ -385,7 +334,7 @@ export default function ModelCatalogModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="bg-slate-900 border-purple-900/20 max-w-5xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
+        className="bg-slate-900 border-purple-900/20 w-[900px] max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           setTimeout(() => searchRef.current?.focus(), 50);
@@ -426,7 +375,7 @@ export default function ModelCatalogModal({
               onKeyDown={(e) => e.stopPropagation()}
               onKeyUp={(e) => e.stopPropagation()}
               placeholder="Buscar modelo..."
-              className="pl-9 pr-8 bg-slate-950/50 border-slate-700 text-white text-sm placeholder:text-slate-500"
+              className="pl-9 pr-8 bg-slate-950/50 border-purple-700/50 focus:border-purple-500 text-white text-sm placeholder:text-slate-500"
             />
             {search && (
               <button
@@ -493,21 +442,6 @@ export default function ModelCatalogModal({
               </SelectContent>
             </Select>
 
-            {/* Sort */}
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[150px] h-8 text-xs bg-slate-950/50 border-slate-700 text-slate-300">
-                <ArrowUpDown className="w-3 h-3 mr-1 text-slate-500" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             {/* Clear filters */}
             {hasActiveFilters && (
               <button
@@ -521,36 +455,30 @@ export default function ModelCatalogModal({
           </div>
         </div>
 
-        {/* ── Column headers ──────────────────────────────────────────── */}
-        <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+        {/* ── Column headers (table-like) ─────────────────────────────── */}
+        <div className="px-5 py-2 border-b border-slate-800 flex items-center gap-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
           <div className="flex-1 min-w-0">Modelo</div>
-          <div className="hidden md:flex items-center gap-1 shrink-0">
-            {Object.entries(CATEGORY_LABELS).map(([key, cat]) => (
-              <div key={key} className="flex flex-col items-center w-7">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span
-                      className={`w-5 h-5 rounded-sm flex items-center justify-center text-[9px] font-bold text-white ${cat.color} ${
-                        agentCategory === key ? 'ring-2 ring-white/30' : ''
-                      }`}
-                    >
-                      {cat.short}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-slate-800 text-white border-slate-700">
-                    {cat.full}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            ))}
+          <div className="flex items-center gap-1 shrink-0 w-[140px] justify-center">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-default">⊕ Adequação /10</span>
+              </TooltipTrigger>
+              <TooltipContent className="bg-slate-800 text-white border-slate-700">
+                <p>Scores de adequação por categoria (1-10)</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
-          <div className="hidden sm:flex items-center gap-3 shrink-0">
-            <span className="w-[60px] text-center">Contexto</span>
-            <span className="w-[70px] text-right">Preço</span>
+          <div className="shrink-0 w-[80px] text-center flex items-center justify-center gap-1">
+            <Cpu className="w-3 h-3" />
+            <span>Contexto</span>
           </div>
+          <div className="shrink-0 w-[85px] text-right flex items-center justify-end gap-1">
+            <span>⊕ Entrada</span>
+          </div>
+          <div className="shrink-0 w-[85px] text-right">Saída</div>
         </div>
 
-        {/* ── Model list ──────────────────────────────────────────────── */}
+        {/* ── Model list (scrollable) ─────────────────────────────────── */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="divide-y divide-slate-800/50">
             {filteredModels.length === 0 ? (
