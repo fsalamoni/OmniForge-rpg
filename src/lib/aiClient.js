@@ -64,10 +64,15 @@ function geminiApiBase(baseUrl) {
  * @param {object} params.userAIConfig             - { apiKey, baseUrl, model }
  * @param {string} [params.systemPrompt]           - Override default system prompt
  * @param {number} [params.temperature]            - Override default temperature (0–2)
+ * @param {string} [params.agentKey]               - Agent key to resolve per-agent model override
+ * @param {Record<string,string>} [params.agentModels] - Map {agentKey → modelId} for per-agent overrides
  * @returns {Promise<object|string>} Parsed JSON if responseSchema provided, string otherwise
  */
-export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPrompt, temperature }) {
-  const { apiKey, baseUrl, model } = userAIConfig || {};
+export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPrompt, temperature, agentKey, agentModels }) {
+  const { apiKey, baseUrl, model: configModel } = userAIConfig || {};
+
+  // Resolve model: per-agent override > config model
+  const model = (agentKey && agentModels?.[agentKey]) || configModel;
 
   if (!apiKey || !baseUrl || !model) {
     throw new Error(

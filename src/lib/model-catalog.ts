@@ -236,7 +236,7 @@ export function findModelById(id: string): ModelOption | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// React hook
+// React hooks
 // ---------------------------------------------------------------------------
 
 /**
@@ -267,4 +267,40 @@ export function useCatalogModels(apiKey?: string): {
   }, [apiKey]);
 
   return { models, isLoading };
+}
+
+/**
+ * Hook React que retorna o catálogo personalizado do usuário.
+ * Combina modelos curados (AVAILABLE_MODELS) + modelos customizados adicionados pelo usuário.
+ * @param apiKey Chave OpenRouter para buscar modelos extras
+ * @param customModelIds IDs de modelos customizados do Firestore do usuário
+ */
+export function useUserCatalog(
+  apiKey?: string,
+  customModelIds?: string[],
+): {
+  /** Modelos curados + customizados do usuário */
+  userModels: ModelOption[];
+  /** Catálogo completo (inclui todos os modelos OpenRouter) */
+  allModels: ModelOption[];
+  isLoading: boolean;
+} {
+  const { models: allModels, isLoading } = useCatalogModels(apiKey);
+
+  const [merged, setMerged] = useState<ModelOption[]>(AVAILABLE_MODELS);
+
+  useEffect(() => {
+    if (!customModelIds || customModelIds.length === 0) {
+      setMerged([...AVAILABLE_MODELS]);
+      return;
+    }
+    const curatedIds = new Set(AVAILABLE_MODELS.map((m) => m.id));
+    const extraModels = customModelIds
+      .filter((id) => !curatedIds.has(id))
+      .map((id) => allModels.find((m) => m.id === id))
+      .filter(Boolean) as ModelOption[];
+    setMerged([...AVAILABLE_MODELS, ...extraModels]);
+  }, [customModelIds, allModels]);
+
+  return { userModels: merged, allModels, isLoading };
 }

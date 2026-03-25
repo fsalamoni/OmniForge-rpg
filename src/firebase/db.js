@@ -52,6 +52,16 @@ export const UserProfile = {
 
   async updateAiConfig(uid, aiConfig) {
     await updateDoc(doc(db, 'users', uid), { aiConfig, updatedAt: now() });
+  },
+
+  /** Persiste o catálogo de modelos customizados do usuário. */
+  async updateModelCatalog(uid, customModelIds) {
+    await updateDoc(doc(db, 'users', uid), { customModelIds, updatedAt: now() });
+  },
+
+  /** Persiste o mapa de modelos por agente do usuário. */
+  async updateAgentModels(uid, agentModels) {
+    await updateDoc(doc(db, 'users', uid), { agentModels, updatedAt: now() });
   }
 };
 
