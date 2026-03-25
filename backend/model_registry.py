@@ -229,6 +229,106 @@ MODEL_REGISTRY: dict[str, ModelInfo] = {
         output_cost=0.0,
         context_window=128_000,
     ),
+
+    # ── Arcee AI ──────────────────────────────────────────────────────────
+    "arcee-ai/arcee-blitz": ModelInfo(
+        name="Arcee Blitz",
+        input_cost=0.05,
+        output_cost=0.10,
+        context_window=32_768,
+    ),
+    "arcee-ai/arcee-caller": ModelInfo(
+        name="Arcee Caller",
+        input_cost=0.03,
+        output_cost=0.05,
+        context_window=32_768,
+    ),
+
+    # ── NVIDIA (extras) ──────────────────────────────────────────────────
+    "nvidia/llama-3.1-nemotron-ultra-253b-v1:free": ModelInfo(
+        name="Nemotron Ultra 253B (Free)",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=131_072,
+    ),
+
+    # ── Google (extras) ──────────────────────────────────────────────────
+    "google/gemini-2.5-flash-preview:thinking": ModelInfo(
+        name="Gemini 2.5 Flash Thinking",
+        input_cost=0.15,
+        output_cost=0.60,
+        context_window=1_048_576,
+    ),
+
+    # ── Amazon ───────────────────────────────────────────────────────────
+    "amazon/nova-pro-v1": ModelInfo(
+        name="Amazon Nova Pro",
+        input_cost=0.80,
+        output_cost=3.20,
+        context_window=300_000,
+    ),
+    "amazon/nova-lite-v1": ModelInfo(
+        name="Amazon Nova Lite",
+        input_cost=0.06,
+        output_cost=0.24,
+        context_window=300_000,
+    ),
+
+    # ── MiniMax ──────────────────────────────────────────────────────────
+    "minimax/minimax-01": ModelInfo(
+        name="MiniMax-01",
+        input_cost=0.40,
+        output_cost=1.10,
+        context_window=1_048_576,
+    ),
+
+    # ── Nous Research ────────────────────────────────────────────────────
+    "nousresearch/hermes-3-llama-3.1-405b": ModelInfo(
+        name="Hermes 3 405B",
+        input_cost=0.80,
+        output_cost=0.80,
+        context_window=131_072,
+    ),
+
+    # ── OpenRouter ───────────────────────────────────────────────────────
+    "openrouter/auto": ModelInfo(
+        name="OpenRouter Auto",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=200_000,
+    ),
+    "openrouter/optimus": ModelInfo(
+        name="OpenRouter Optimus",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=200_000,
+    ),
+
+    # ── Free Models (extras) ────────────────────────────────────────────
+    "meta-llama/llama-3.3-70b-instruct:free": ModelInfo(
+        name="Llama 3.3 70B (Free)",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=131_072,
+    ),
+    "meta-llama/llama-4-maverick:free": ModelInfo(
+        name="Llama 4 Maverick (Free)",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=1_048_576,
+    ),
+    "qwen/qwen-2.5-72b-instruct:free": ModelInfo(
+        name="Qwen 2.5 72B (Free)",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=131_072,
+    ),
+    "google/gemma-3-27b-it:free": ModelInfo(
+        name="Gemma 3 27B (Free)",
+        input_cost=0.0,
+        output_cost=0.0,
+        context_window=131_072,
+    ),
 }
 
 
