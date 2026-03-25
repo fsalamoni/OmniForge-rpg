@@ -48,12 +48,12 @@ export const AI_PRESETS = {
 };
 
 /** Returns true when the baseUrl points to Gemini's native REST API */
-function isGeminiUrl(baseUrl) {
+export function isGeminiUrl(baseUrl) {
   return typeof baseUrl === 'string' && baseUrl.includes('generativelanguage.googleapis.com');
 }
 
 /** Normalize any Gemini baseUrl variant to the v1beta root (strips /openai suffix if present) */
-function geminiApiBase(baseUrl) {
+export function geminiApiBase(baseUrl) {
   return baseUrl.replace(/\/openai\/?$/, '').replace(/\/$/, '');
 }
 
