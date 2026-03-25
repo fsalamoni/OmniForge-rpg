@@ -7,7 +7,7 @@
  * Segue o padrão de design OmniForge (slate-900 + purple accents).
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -179,6 +179,22 @@ export default function OpenRouterBrowserModal({
   const [manualError, setManualError] = useState('');
   const [manualAdded, setManualAdded] = useState(false);
 
+  const searchRef = useRef(null);
+
+  // Reset filters when modal opens
+  useEffect(() => {
+    if (open) {
+      setSearch('');
+      setPricingFilter('all');
+      setTierFilter('all');
+      setProviderFilter('all');
+      setSortBy('name-asc');
+      setManualId('');
+      setManualError('');
+      setManualAdded(false);
+    }
+  }, [open]);
+
   const userIdSet = useMemo(() => new Set(userModelIds), [userModelIds]);
 
   const providers = useMemo(() => {
@@ -193,10 +209,10 @@ export default function OpenRouterBrowserModal({
       const q = search.toLowerCase();
       list = list.filter(
         (m) =>
-          m.label.toLowerCase().includes(q) ||
-          m.provider.toLowerCase().includes(q) ||
-          m.id.toLowerCase().includes(q) ||
-          (m.description && m.description.toLowerCase().includes(q))
+          (m.label || '').toLowerCase().includes(q) ||
+          (m.provider || '').toLowerCase().includes(q) ||
+          (m.id || '').toLowerCase().includes(q) ||
+          (m.description || '').toLowerCase().includes(q)
       );
     }
 
@@ -278,7 +294,13 @@ export default function OpenRouterBrowserModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+      <DialogContent
+        className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          searchRef.current?.focus();
+        }}
+      >
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-800">
           <DialogTitle className="text-xl text-white font-bold flex items-center gap-2">
@@ -312,7 +334,7 @@ export default function OpenRouterBrowserModal({
             <Input
               value={manualId}
               onChange={(e) => { setManualId(e.target.value); setManualError(''); }}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddByManualId()}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddByManualId(); e.stopPropagation(); }}
               placeholder="ex: openai/gpt-4o ou deepseek/deepseek-v3"
               className="bg-slate-950/50 border-slate-700 text-white text-sm placeholder:text-slate-600 font-mono"
             />
@@ -339,8 +361,10 @@ export default function OpenRouterBrowserModal({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input
+              ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="Buscar por nome, provedor ou ID..."
               className="pl-9 pr-8 bg-slate-950/50 border-slate-700 text-white text-sm placeholder:text-slate-500"
             />
