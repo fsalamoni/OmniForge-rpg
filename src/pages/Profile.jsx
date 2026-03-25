@@ -144,7 +144,12 @@ export default function Profile() {
 
   const handleAiSubmit = (e) => {
     e.preventDefault();
-    updateAiMutation.mutate(aiConfig);
+    const configToSave = { ...aiConfig };
+    // Se o usuário deixou a chave em branco, mantém a chave existente no Firestore
+    if (!configToSave.apiKey.trim() && userProfile?.aiConfig?.apiKey) {
+      configToSave.apiKey = userProfile.aiConfig.apiKey;
+    }
+    updateAiMutation.mutate(configToSave);
   };
 
   const handleProviderChange = (provider) => {
