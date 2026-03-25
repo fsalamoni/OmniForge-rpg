@@ -8,7 +8,7 @@
  * Segue o padrão de design OmniForge (slate-900 + purple accents).
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -286,6 +286,19 @@ export default function ModelCatalogModal({
   const [providerFilter, setProviderFilter] = useState('all');
   const [sortBy, setSortBy] = useState('fit-desc');
 
+  const searchRef = useRef(null);
+
+  // Reset filters when modal opens
+  useEffect(() => {
+    if (open) {
+      setSearch('');
+      setPricingFilter('all');
+      setTierFilter('all');
+      setProviderFilter('all');
+      setSortBy('fit-desc');
+    }
+  }, [open]);
+
   // ── Derived ──────────────────────────────────────────────────────────────
 
   /** Unique providers from the model list. */
@@ -303,10 +316,10 @@ export default function ModelCatalogModal({
       const q = search.toLowerCase();
       list = list.filter(
         (m) =>
-          m.label.toLowerCase().includes(q) ||
-          m.provider.toLowerCase().includes(q) ||
-          m.id.toLowerCase().includes(q) ||
-          (m.description && m.description.toLowerCase().includes(q))
+          (m.label || '').toLowerCase().includes(q) ||
+          (m.provider || '').toLowerCase().includes(q) ||
+          (m.id || '').toLowerCase().includes(q) ||
+          (m.description || '').toLowerCase().includes(q)
       );
     }
 
@@ -372,7 +385,13 @@ export default function ModelCatalogModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+      <DialogContent
+        className="bg-slate-900 border-purple-900/20 max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          searchRef.current?.focus();
+        }}
+      >
         <TooltipProvider delayDuration={200}>
         {/* ── Header ──────────────────────────────────────────────────── */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-800">
@@ -402,8 +421,10 @@ export default function ModelCatalogModal({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input
+              ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="Buscar modelo..."
               className="pl-9 pr-8 bg-slate-950/50 border-slate-700 text-white text-sm placeholder:text-slate-500"
             />
