@@ -29,5 +29,3 @@ export const pagesConfig = {
     Pages: PAGES,
     Layout: __Layout,
 };
-import TestModal from './pages/TestModal';
-export const TEST_PAGES = { TestModal };
