@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
-import { AI_PRESETS } from '@/lib/aiClient';
+import { AI_PRESETS, isGeminiUrl, geminiApiBase } from '@/lib/aiClient';
 import { useUserCatalog } from '@/lib/model-catalog';
 import { AVAILABLE_MODELS, loadAgentModels, saveAgentModels, getDefaultModelMap } from '@/lib/model-config';
 import { useMutation } from '@tanstack/react-query';
@@ -168,10 +168,13 @@ export default function Profile() {
     setTestStatus('testing');
     setTestError('');
     try {
-      if (aiProvider === 'gemini') {
-        // Gemini uses API key as query param, not Bearer header
+      if (aiProvider === 'gemini' || isGeminiUrl(aiConfig.baseUrl)) {
+        // Gemini (native or via Custom URL): use the native REST endpoint with ?key= param.
+        // The OpenAI-compat endpoint (/openai/models) blocks CORS from browsers, so we
+        // always normalise to the v1beta root and call /models?key=… instead.
+        const nativeBase = geminiApiBase(aiConfig.baseUrl);
         const res = await fetch(
-          `${aiConfig.baseUrl}/models?key=${encodeURIComponent(key)}`
+          `${nativeBase}/models?key=${encodeURIComponent(key)}`
         );
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
