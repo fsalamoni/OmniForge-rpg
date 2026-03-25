@@ -147,13 +147,13 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
       {/* Row grid: MODEL | SCORES | CONTEXT | INPUT | OUTPUT */}
       <div className="flex items-center gap-4">
         {/* ── Model info (name, badges, description) ── */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-white text-sm leading-tight">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-semibold text-white text-sm leading-tight truncate block min-w-0">
               {model.label}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          <div className="flex items-center gap-1.5 mt-1 overflow-hidden">
             <Badge
               variant="outline"
               className="text-[10px] px-1.5 py-0 border-slate-600 text-slate-400 shrink-0"
@@ -166,7 +166,7 @@ function ModelRow({ model, isSelected, onSelect, highlightCategory }) {
             >
               {TIER_CONFIG[model.tier]?.icon} {TIER_CONFIG[model.tier]?.label || model.tier}
             </Badge>
-            <span className="text-[11px] text-slate-500 truncate block min-w-0">
+            <span className="text-[11px] text-slate-500 truncate flex-1 min-w-0">
               {model.description}
             </span>
           </div>
@@ -334,7 +334,7 @@ export default function ModelCatalogModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="bg-slate-900 border-purple-900/20 w-[900px] max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
+        className="bg-slate-900 border-purple-900/20 w-[900px] max-w-[95vw] h-[85vh] max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           setTimeout(() => searchRef.current?.focus(), 50);
