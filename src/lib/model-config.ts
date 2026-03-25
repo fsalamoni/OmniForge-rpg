@@ -913,25 +913,30 @@ export function getDefaultModelMap(): Record<string, string> {
 }
 
 /**
- * Carrega o mapa de modelos por agente do localStorage.
- * Faz fallback para getDefaultModelMap() se não houver dados salvos.
+ * Carrega o mapa de modelos por agente.
+ * Prioridade: firestoreData > localStorage > defaults.
+ * @param firestoreData Mapa de agente→modelo salvo no Firestore (opcional)
  */
-export function loadAgentModels(): Record<string, string> {
+export function loadAgentModels(firestoreData?: Record<string, string>): Record<string, string> {
+  const defaults = getDefaultModelMap();
+  if (firestoreData && Object.keys(firestoreData).length > 0) {
+    return { ...defaults, ...firestoreData };
+  }
   try {
     const raw = localStorage.getItem(AGENT_MODELS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Record<string, string>;
-      // Mescla com os defaults para incluir agentes adicionados após o save
-      return { ...getDefaultModelMap(), ...parsed };
+      return { ...defaults, ...parsed };
     }
   } catch {
     // localStorage indisponível (SSR, erro de parse, etc.)
   }
-  return getDefaultModelMap();
+  return defaults;
 }
 
 /**
- * Persiste o mapa de modelos por agente no localStorage.
+ * Persiste o mapa de modelos por agente no localStorage (cache local).
+ * A persistência principal é feita via Firestore em UserProfile.updateAgentModels().
  * @param models Mapa {agentKey → modelId}
  */
 export function saveAgentModels(models: Record<string, string>): void {

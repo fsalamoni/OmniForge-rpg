@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
 import { AI_PRESETS, invokeLLM } from '@/lib/aiClient';
-import { useCatalogModels } from '@/lib/model-catalog';
+import { useUserCatalog } from '@/lib/model-catalog';
+import { AVAILABLE_MODELS, loadAgentModels, saveAgentModels, getDefaultModelMap } from '@/lib/model-config';
 import { useMutation } from '@tanstack/react-query';
 import ModelCatalogModal from '@/components/ModelCatalogModal';
+import OpenRouterBrowserModal from '@/components/OpenRouterBrowserModal';
+import AgentModelConfig from '@/components/AgentModelConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +27,7 @@ import {
   AlertCircle,
   FlaskConical,
   BookOpen,
+  Globe,
 } from 'lucide-react';
 
 export default function Profile() {
@@ -42,10 +46,24 @@ export default function Profile() {
   const [testStatus, setTestStatus] = useState(null); // null | 'testing' | 'ok' | 'error'
   const [testError, setTestError] = useState('');
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
 
-  // Use the catalog hook to get both static + dynamic (OpenRouter) models
-  const { models: catalogModels } = useCatalogModels(
-    aiProvider === 'openrouter' ? aiConfig.apiKey : undefined
+  // Custom model IDs from Firestore
+  const [customModelIds, setCustomModelIds] = useState([]);
+
+  // Per-agent model map
+  const [agentModels, setAgentModels] = useState(() => getDefaultModelMap());
+
+  // Use the enhanced catalog hook — returns user's models + all OpenRouter models
+  const { userModels, allModels, isLoading: catalogLoading } = useUserCatalog(
+    aiProvider === 'openrouter' ? aiConfig.apiKey : undefined,
+    customModelIds
+  );
+
+  // IDs of all models in the user's catalog (curated + custom)
+  const userModelIds = useMemo(
+    () => userModels.map((m) => m.id),
+    [userModels]
   );
 
   // Sync local state when userProfile loads asynchronously from Firestore
@@ -59,7 +77,13 @@ export default function Profile() {
         model: userProfile.aiConfig.model || ''
       });
     }
-  }, [userProfile]);
+    // Load custom model IDs from Firestore
+    if (Array.isArray(userProfile.customModelIds)) {
+      setCustomModelIds(userProfile.customModelIds);
+    }
+    // Load per-agent model map from Firestore (fallback to localStorage)
+    setAgentModels(loadAgentModels(userProfile.agentModels));
+  }, [userProfile, user]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data) => {
@@ -83,6 +107,19 @@ export default function Profile() {
     }
   });
 
+  const updateAgentModelsMutation = useMutation({
+    mutationFn: async (models) => {
+      // Save to both Firestore and localStorage
+      await UserProfile.updateAgentModels(user.uid, models);
+      saveAgentModels(models);
+      await refreshProfile();
+    },
+    onSuccess: () => {
+      setSaveSuccess('agents');
+      setTimeout(() => setSaveSuccess(''), 3000);
+    }
+  });
+
   const handleProfileSubmit = (e) => {
     e.preventDefault();
     updateProfileMutation.mutate(formData);
@@ -99,7 +136,6 @@ export default function Profile() {
     setAiConfig(prev => ({
       ...prev,
       baseUrl: provider !== 'custom' ? preset.baseUrl : '',
-      // Reset model when switching providers
       model: preset.models?.[0]?.value || ''
     }));
     setTestStatus(null);
@@ -127,6 +163,33 @@ export default function Profile() {
       setTestStatus('error');
       setTestError(err.message || 'Erro ao conectar com a API');
     }
+  };
+
+  // Handle adding a model from the OpenRouter browser to the user's catalog
+  const handleAddModelFromBrowser = async (model) => {
+    const curatedIds = new Set(AVAILABLE_MODELS.map((m) => m.id));
+    // Don't add curated models (they're always included)
+    if (curatedIds.has(model.id)) return;
+    // Don't add duplicates
+    if (customModelIds.includes(model.id)) return;
+    const newIds = [...customModelIds, model.id];
+    setCustomModelIds(newIds);
+    // Persist to Firestore
+    try {
+      await UserProfile.updateModelCatalog(user.uid, newIds);
+      await refreshProfile();
+    } catch (err) {
+      console.error('Failed to save custom model:', err);
+    }
+  };
+
+  const handleSaveAgentModels = () => {
+    updateAgentModelsMutation.mutate(agentModels);
+  };
+
+  const handleResetAgentModels = () => {
+    const defaults = getDefaultModelMap();
+    setAgentModels(defaults);
   };
 
   const currentPreset = AI_PRESETS[aiProvider];
@@ -321,7 +384,7 @@ export default function Profile() {
 
             {/* Model — dropdown when preset has model list, catalog combobox for openrouter, text input for custom */}
             <div>
-              <Label className="text-white mb-2 block">Modelo</Label>
+              <Label className="text-white mb-2 block">Modelo Padrão</Label>
               {hasModelList ? (
                 <Select
                   value={aiConfig.model}
@@ -341,27 +404,48 @@ export default function Profile() {
                 </Select>
               ) : aiProvider === 'openrouter' ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => setCatalogOpen(true)}
-                    className="flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  >
-                    <span className={aiConfig.model ? 'text-white' : 'text-slate-500'}>
-                      {aiConfig.model
-                        ? (catalogModels.find((m) => m.id === aiConfig.model)?.label ?? aiConfig.model)
-                        : 'Clique para abrir o catálogo de modelos...'}
-                    </span>
-                    <BookOpen className="ml-2 h-4 w-4 shrink-0 text-purple-400" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCatalogOpen(true)}
+                      className="flex flex-1 items-center justify-between rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <span className={aiConfig.model ? 'text-white' : 'text-slate-500'}>
+                        {aiConfig.model
+                          ? (userModels.find((m) => m.id === aiConfig.model)?.label ?? aiConfig.model)
+                          : 'Clique para abrir o catálogo de modelos...'}
+                      </span>
+                      <BookOpen className="ml-2 h-4 w-4 shrink-0 text-purple-400" />
+                    </button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBrowserOpen(true)}
+                      className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
+                      title="Explorar todos os modelos do OpenRouter"
+                    >
+                      <Globe className="w-4 h-4 mr-1.5" />
+                      Explorar
+                    </Button>
+                  </div>
                   <ModelCatalogModal
                     open={catalogOpen}
                     onOpenChange={setCatalogOpen}
-                    models={catalogModels}
+                    models={userModels}
                     selectedModelId={aiConfig.model}
                     onSelect={(model) => {
                       setAiConfig({ ...aiConfig, model: model.id });
                       setTestStatus(null);
                     }}
+                  />
+                  <OpenRouterBrowserModal
+                    open={browserOpen}
+                    onOpenChange={setBrowserOpen}
+                    allModels={allModels}
+                    userModelIds={userModelIds}
+                    onAddModel={handleAddModelFromBrowser}
+                    isLoading={catalogLoading}
                   />
                   <div className="mt-2">
                     <Input
@@ -374,6 +458,12 @@ export default function Profile() {
                       className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
                     />
                   </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {userModels.length} modelos no seu catálogo
+                    {customModelIds.length > 0 && (
+                      <span className="text-purple-400"> ({customModelIds.length} personalizado{customModelIds.length !== 1 ? 's' : ''})</span>
+                    )}
+                  </p>
                 </>
               ) : (
                 <>
@@ -446,6 +536,18 @@ export default function Profile() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Per-Agent Model Configuration */}
+      {aiProvider === 'openrouter' && (
+        <AgentModelConfig
+          agentModels={agentModels}
+          onAgentModelsChange={setAgentModels}
+          catalogModels={userModels}
+          isSaving={updateAgentModelsMutation.isPending}
+          onSave={handleSaveAgentModels}
+          onReset={handleResetAgentModels}
+        />
+      )}
     </div>
   );
 }
