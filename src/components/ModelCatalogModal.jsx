@@ -285,7 +285,6 @@ export default function ModelCatalogModal({
   const [tierFilter, setTierFilter] = useState('all');       // 'all' | 'fast' | 'balanced' | 'premium'
   const [providerFilter, setProviderFilter] = useState('all');
   const [sortBy, setSortBy] = useState('fit-desc');
-  const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
