@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
-import { AI_PRESETS, invokeLLM } from '@/lib/aiClient';
+import { AI_PRESETS } from '@/lib/aiClient';
 import { useUserCatalog } from '@/lib/model-catalog';
 import { AVAILABLE_MODELS, loadAgentModels, saveAgentModels, getDefaultModelMap } from '@/lib/model-config';
 import { useMutation } from '@tanstack/react-query';
@@ -159,23 +159,39 @@ export default function Profile() {
   };
 
   const handleTestKey = async () => {
-    if (!aiConfig.apiKey || !aiConfig.baseUrl || !aiConfig.model) {
-      setTestError('Preencha a chave, URL e modelo antes de testar.');
+    const key = (aiConfig.apiKey || '').trim();
+    if (!key || !aiConfig.baseUrl) {
+      setTestError('Preencha a chave de API antes de testar.');
       setTestStatus('error');
       return;
     }
     setTestStatus('testing');
     setTestError('');
     try {
-      const reply = await invokeLLM({
-        prompt: 'Responda apenas com a palavra: OK',
-        userAIConfig: aiConfig
-      });
-      if (typeof reply === 'string' && reply.trim().length > 0) {
-        setTestStatus('ok');
+      if (aiProvider === 'gemini') {
+        // Gemini uses API key as query param, not Bearer header
+        const res = await fetch(
+          `${aiConfig.baseUrl}/models?key=${encodeURIComponent(key)}`
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.error?.message || `Erro ${res.status}: ${res.statusText}`);
+        }
       } else {
-        throw new Error('Resposta inesperada da API');
+        // OpenRouter / OpenAI-compatible: validate via GET /models (no model required)
+        const res = await fetch(`${aiConfig.baseUrl}/models`, {
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'OmniForge RPG',
+          },
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.error?.message || `Erro ${res.status}: ${res.statusText}`);
+        }
       }
+      setTestStatus('ok');
     } catch (err) {
       setTestStatus('error');
       setTestError(err.message || 'Erro ao conectar com a API');

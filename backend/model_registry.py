@@ -25,13 +25,19 @@ class ModelInfo(TypedDict):
 MODEL_REGISTRY: dict[str, ModelInfo] = {
 
     # ── Anthropic ──────────────────────────────────────────────────────────
-    "anthropic/claude-3-5-sonnet": ModelInfo(
+    "anthropic/claude-sonnet-4": ModelInfo(
+        name="Claude Sonnet 4",
+        input_cost=3.0,
+        output_cost=15.0,
+        context_window=200_000,
+    ),
+    "anthropic/claude-3.5-sonnet": ModelInfo(
         name="Claude 3.5 Sonnet",
         input_cost=3.0,
         output_cost=15.0,
         context_window=200_000,
     ),
-    "anthropic/claude-3-5-haiku": ModelInfo(
+    "anthropic/claude-3.5-haiku": ModelInfo(
         name="Claude 3.5 Haiku",
         input_cost=0.8,
         output_cost=4.0,
@@ -55,6 +61,12 @@ MODEL_REGISTRY: dict[str, ModelInfo] = {
         name="Gemini 2.5 Pro Preview",
         input_cost=1.25,
         output_cost=10.0,
+        context_window=1_048_576,
+    ),
+    "google/gemini-2.5-flash": ModelInfo(
+        name="Gemini 2.5 Flash",
+        input_cost=0.15,
+        output_cost=0.6,
         context_window=1_048_576,
     ),
     "google/gemini-2.0-flash": ModelInfo(
@@ -88,6 +100,18 @@ MODEL_REGISTRY: dict[str, ModelInfo] = {
         input_cost=0.15,
         output_cost=0.6,
         context_window=128_000,
+    ),
+    "openai/gpt-4.1": ModelInfo(
+        name="GPT-4.1",
+        input_cost=2.0,
+        output_cost=8.0,
+        context_window=1_048_576,
+    ),
+    "openai/gpt-4.1-mini": ModelInfo(
+        name="GPT-4.1 Mini",
+        input_cost=0.4,
+        output_cost=1.6,
+        context_window=1_048_576,
     ),
     "openai/o3-mini": ModelInfo(
         name="o3-mini",
@@ -135,6 +159,18 @@ MODEL_REGISTRY: dict[str, ModelInfo] = {
     ),
 
     # ── Meta ───────────────────────────────────────────────────────────────
+    "meta-llama/llama-4-maverick": ModelInfo(
+        name="Llama 4 Maverick",
+        input_cost=0.2,
+        output_cost=0.6,
+        context_window=1_048_576,
+    ),
+    "meta-llama/llama-4-scout": ModelInfo(
+        name="Llama 4 Scout",
+        input_cost=0.15,
+        output_cost=0.4,
+        context_window=10_000_000,
+    ),
     "meta-llama/llama-3.1-405b-instruct": ModelInfo(
         name="Llama 3.1 405B Instruct",
         input_cost=2.7,
@@ -179,6 +215,12 @@ MODEL_REGISTRY: dict[str, ModelInfo] = {
         name="Qwen 2.5 72B Instruct",
         input_cost=0.13,
         output_cost=0.4,
+        context_window=131_072,
+    ),
+    "qwen/qwen-2.5-coder-32b-instruct": ModelInfo(
+        name="Qwen 2.5 Coder 32B",
+        input_cost=0.07,
+        output_cost=0.16,
         context_window=131_072,
     ),
     "qwen/qwen-2-7b-instruct:free": ModelInfo(
@@ -245,6 +287,12 @@ MODEL_REGISTRY: dict[str, ModelInfo] = {
     ),
 
     # ── NVIDIA (extras) ──────────────────────────────────────────────────
+    "nvidia/llama-3.1-nemotron-70b-instruct": ModelInfo(
+        name="Nemotron 70B",
+        input_cost=0.12,
+        output_cost=0.3,
+        context_window=131_072,
+    ),
     "nvidia/llama-3.1-nemotron-ultra-253b-v1:free": ModelInfo(
         name="Nemotron Ultra 253B (Free)",
         input_cost=0.0,
@@ -280,6 +328,20 @@ MODEL_REGISTRY: dict[str, ModelInfo] = {
         input_cost=0.40,
         output_cost=1.10,
         context_window=1_048_576,
+    ),
+
+    # ── Perplexity ───────────────────────────────────────────────────────
+    "perplexity/sonar-pro": ModelInfo(
+        name="Sonar Pro",
+        input_cost=3.0,
+        output_cost=15.0,
+        context_window=200_000,
+    ),
+    "perplexity/sonar": ModelInfo(
+        name="Sonar",
+        input_cost=1.0,
+        output_cost=1.0,
+        context_window=127_072,
     ),
 
     # ── Nous Research ────────────────────────────────────────────────────

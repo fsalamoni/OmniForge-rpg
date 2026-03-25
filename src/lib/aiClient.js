@@ -69,7 +69,8 @@ function geminiApiBase(baseUrl) {
  * @returns {Promise<object|string>} Parsed JSON if responseSchema provided, string otherwise
  */
 export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPrompt, temperature, agentKey, agentModels }) {
-  const { apiKey, baseUrl, model: configModel } = userAIConfig || {};
+  const { apiKey: _apiKey, baseUrl, model: configModel } = userAIConfig || {};
+  const apiKey = _apiKey?.trim();
 
   // Resolve model: per-agent override > config model
   const model = (agentKey && agentModels?.[agentKey]) || configModel;
@@ -196,7 +197,8 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
  * @returns {Promise<{content: string, model: string, tokens_in: number, tokens_out: number, cost_usd: number, duration_ms: number}>}
  */
 export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4000, temperature = 0.3 }) {
-  const { apiKey, baseUrl, model: configModel } = userAIConfig || {};
+  const { apiKey: _apiKey, baseUrl, model: configModel } = userAIConfig || {};
+  const apiKey = _apiKey?.trim();
 
   if (!apiKey) {
     throw new Error(
