@@ -3,7 +3,7 @@
  *
  * This worker sits on the protagonistarpg.com.br zone and proxies all
  * requests under the /omniforge path to the GitHub Pages deployment at
- * https://fsalamoni.github.io/omniforge/
+ * https://fsalamoni.github.io/OmniForge-rpg/
  *
  * Deploy instructions (see README.md for the full walkthrough):
  *   1. In Cloudflare Dashboard → Workers & Pages → Create Worker
@@ -15,6 +15,8 @@
  */
 
 const GITHUB_PAGES_ORIGIN = 'https://fsalamoni.github.io';
+const PATH_PREFIX = '/omniforge';
+const REPO_PATH = '/OmniForge-rpg';
 
 export default {
   async fetch(request) {
@@ -25,8 +27,12 @@ export default {
       return new Response('Not found', { status: 404 });
     }
 
+    // Strip /omniforge prefix and replace with /OmniForge-rpg (the GitHub Pages repo path)
+    const pathWithoutPrefix = url.pathname.slice(PATH_PREFIX.length) || '/';
+    const upstreamPath = REPO_PATH + pathWithoutPrefix;
+
     // Build the upstream URL on GitHub Pages
-    const upstream = new URL(url.pathname + url.search + url.hash, GITHUB_PAGES_ORIGIN);
+    const upstream = new URL(upstreamPath + url.search + url.hash, GITHUB_PAGES_ORIGIN);
 
     // Forward the request, propagating useful headers
     const upstreamRequest = new Request(upstream.toString(), {
