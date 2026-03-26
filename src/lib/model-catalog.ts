@@ -199,12 +199,17 @@ export async function fetchOpenRouterModels(apiKey?: string): Promise<ModelOptio
 
     const converted = textModels.map(openRouterToModelOption);
 
-    // Merge: priority to AVAILABLE_MODELS for known IDs (they have curated descriptions/scores),
-    // then append any extra models from the API not in the static list.
-    const knownIds = new Set(AVAILABLE_MODELS.map((m) => m.id));
-    const extras = converted.filter((m) => !knownIds.has(m.id));
+    // Build set of live model IDs for availability check
+    const liveIds = new Set(converted.map((m) => m.id));
 
-    _catalog = [...AVAILABLE_MODELS, ...extras];
+    // Keep only AVAILABLE_MODELS that are confirmed live on OpenRouter
+    const confirmedCurated = AVAILABLE_MODELS.filter((m) => liveIds.has(m.id));
+    const curatedIds = new Set(confirmedCurated.map((m) => m.id));
+
+    // Append extra models from the API that are not in the curated list
+    const extras = converted.filter((m) => !curatedIds.has(m.id));
+
+    _catalog = [...confirmedCurated, ...extras];
     notifyListeners();
     return _catalog;
   } catch {
@@ -233,6 +238,81 @@ export function getModelsByTier(tier: 'fast' | 'balanced' | 'premium'): ModelOpt
 /** Encontra um ModelOption pelo ID. Retorna undefined se não encontrado. */
 export function findModelById(id: string): ModelOption | undefined {
   return _catalog.find((m) => m.id === id);
+}
+
+// ---------------------------------------------------------------------------
+// Verificação de modelos contra a API OpenRouter
+// ---------------------------------------------------------------------------
+
+export interface VerifyResult {
+  /** IDs de modelos disponíveis na API OpenRouter */
+  availableIds: Set<string>;
+  /** Modelos do catálogo (AVAILABLE_MODELS) que NÃO estão disponíveis */
+  unavailableCatalogIds: string[];
+  /** Modelos de agente que NÃO estão disponíveis. Map {agentKey → modelId} */
+  unavailableAgentModels: Record<string, string>;
+  /** O modelo padrão configurado é válido? */
+  defaultModelAvailable: boolean;
+  /** Total de modelos verificados */
+  totalChecked: number;
+}
+
+/**
+ * Verifica quais modelos do catálogo e dos agentes ainda estão disponíveis na API OpenRouter.
+ * @param apiKey Chave de API OpenRouter do usuário
+ * @param agentModels Mapa {agentKey → modelId} dos agentes
+ * @param defaultModel Modelo padrão configurado pelo usuário
+ */
+export async function verifyModelAvailability(
+  apiKey: string,
+  agentModels: Record<string, string>,
+  defaultModel: string,
+): Promise<VerifyResult> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  const res = await fetch('https://openrouter.ai/api/v1/models', { headers });
+  if (!res.ok) {
+    throw new Error(`OpenRouter API retornou ${res.status}: ${res.statusText}`);
+  }
+
+  const json = await res.json() as { data: OpenRouterModel[] };
+  const liveIds = new Set((json.data ?? []).map((m) => m.id));
+
+  // Check which AVAILABLE_MODELS are unavailable
+  const unavailableCatalogIds = AVAILABLE_MODELS
+    .map((m) => m.id)
+    .filter((id) => !liveIds.has(id));
+
+  // Check which agent models are unavailable (skip empty/unset assignments)
+  const unavailableAgentModels: Record<string, string> = {};
+  for (const [agentKey, modelId] of Object.entries(agentModels)) {
+    if (modelId && !liveIds.has(modelId)) {
+      unavailableAgentModels[agentKey] = modelId;
+    }
+  }
+
+  // Check default model (empty string means no model selected — treated as valid)
+  const defaultModelAvailable = !defaultModel || liveIds.has(defaultModel);
+
+  // Total unique IDs checked
+  const allIds = new Set([
+    ...AVAILABLE_MODELS.map((m) => m.id),
+    ...Object.values(agentModels),
+    defaultModel,
+  ].filter(Boolean));
+
+  return {
+    availableIds: liveIds,
+    unavailableCatalogIds,
+    unavailableAgentModels,
+    defaultModelAvailable,
+    totalChecked: allIds.size,
+  };
 }
 
 // ---------------------------------------------------------------------------
