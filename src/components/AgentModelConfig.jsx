@@ -59,6 +59,7 @@ const CATEGORY_TIPS = {
 // ---------------------------------------------------------------------------
 
 function AgentRow({ agent, currentModelId, modelLabel, onOpenCatalog }) {
+  const isEmpty = !currentModelId;
   return (
     <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
       {/* Agent info */}
@@ -78,10 +79,16 @@ function AgentRow({ agent, currentModelId, modelLabel, onOpenCatalog }) {
       <button
         type="button"
         onClick={() => onOpenCatalog(agent)}
-        className="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-950/50 px-3 py-1.5 text-xs text-white hover:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors min-w-[200px] max-w-[280px]"
+        className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors min-w-[200px] max-w-[280px] ${
+          isEmpty
+            ? 'border-amber-600/50 bg-amber-950/20 text-amber-400'
+            : 'border-slate-700 bg-slate-950/50 text-white'
+        }`}
       >
-        <Cpu className="w-3 h-3 text-slate-500 shrink-0" />
-        <span className="truncate text-slate-300">{modelLabel || currentModelId}</span>
+        <Cpu className={`w-3 h-3 shrink-0 ${isEmpty ? 'text-amber-500' : 'text-slate-500'}`} />
+        <span className={`truncate ${isEmpty ? 'text-amber-400 italic' : 'text-slate-300'}`}>
+          {isEmpty ? 'Selecione um modelo...' : (modelLabel || currentModelId)}
+        </span>
         <BookOpen className="w-3 h-3 text-purple-400 shrink-0 ml-auto" />
       </button>
     </div>
@@ -191,15 +198,20 @@ export default function AgentModelConfig({
               </div>
 
               {/* Agent rows */}
-              {agents.map((agent) => (
-                <AgentRow
-                  key={agent.key}
-                  agent={agent}
-                  currentModelId={agentModels[agent.key] || agent.defaultModel}
-                  modelLabel={modelLabelMap[agentModels[agent.key] || agent.defaultModel]}
-                  onOpenCatalog={handleOpenCatalog}
-                />
-              ))}
+              {agents.map((agent) => {
+                // Use explicit check: empty string '' means "no model assigned"
+                const rawId = agentModels[agent.key];
+                const effectiveModelId = rawId === '' ? '' : (rawId || agent.defaultModel);
+                return (
+                  <AgentRow
+                    key={agent.key}
+                    agent={agent}
+                    currentModelId={effectiveModelId}
+                    modelLabel={effectiveModelId ? modelLabelMap[effectiveModelId] : ''}
+                    onOpenCatalog={handleOpenCatalog}
+                  />
+                );
+              })}
             </div>
           ))}
         </TooltipProvider>
@@ -244,7 +256,10 @@ export default function AgentModelConfig({
         open={catalogOpen}
         onOpenChange={setCatalogOpen}
         models={catalogModels}
-        selectedModelId={activeAgent ? (agentModels[activeAgent.key] || activeAgent.defaultModel) : ''}
+        selectedModelId={activeAgent
+          ? (agentModels[activeAgent.key] === '' ? '' : (agentModels[activeAgent.key] || activeAgent.defaultModel))
+          : ''
+        }
         onSelect={handleSelectModel}
         agentLabel={activeAgent?.label || ''}
         agentCategory={activeAgent?.agentCategory || ''}

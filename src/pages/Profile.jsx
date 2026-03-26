@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
 import { AI_PRESETS, isGeminiUrl, geminiApiBase } from '@/lib/aiClient';
-import { useUserCatalog } from '@/lib/model-catalog';
-import { AVAILABLE_MODELS, loadAgentModels, saveAgentModels, getDefaultModelMap } from '@/lib/model-config';
+import { useUserCatalog, verifyModelAvailability } from '@/lib/model-catalog';
+import { AVAILABLE_MODELS, PIPELINE_AGENT_DEFS, loadAgentModels, saveAgentModels, getDefaultModelMap } from '@/lib/model-config';
 import { useMutation } from '@tanstack/react-query';
 import ModelCatalogModal from '@/components/ModelCatalogModal';
 import OpenRouterBrowserModal from '@/components/OpenRouterBrowserModal';
@@ -28,6 +28,8 @@ import {
   FlaskConical,
   BookOpen,
   Download,
+  ShieldCheck,
+  Trash2,
 } from 'lucide-react';
 
 const DEFAULT_AI_PROVIDER = 'openrouter';
@@ -62,6 +64,11 @@ export default function Profile() {
   const [testError, setTestError] = useState('');
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
+
+  // Model verification state
+  const [verifyStatus, setVerifyStatus] = useState(null); // null | 'verifying' | 'done' | 'error'
+  const [verifyResults, setVerifyResults] = useState(null);
+  const [verifyError, setVerifyError] = useState('');
 
   // Custom model IDs from Firestore
   const [customModelIds, setCustomModelIds] = useState([]);
@@ -231,6 +238,62 @@ export default function Profile() {
   const handleResetAgentModels = () => {
     const defaults = getDefaultModelMap();
     setAgentModels(defaults);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Verify & cleanup unavailable models
+  // ---------------------------------------------------------------------------
+  const handleVerifyModels = async () => {
+    const key = (aiConfig.apiKey || '').trim();
+    if (!key) {
+      setVerifyError('Configure sua chave de API antes de verificar os modelos.');
+      setVerifyStatus('error');
+      return;
+    }
+    setVerifyStatus('verifying');
+    setVerifyError('');
+    setVerifyResults(null);
+    try {
+      const results = await verifyModelAvailability(key, agentModels, aiConfig.model);
+      setVerifyResults(results);
+
+      // Auto-cleanup: remove unavailable agent models
+      const unavailableAgentKeys = Object.keys(results.unavailableAgentModels);
+      if (unavailableAgentKeys.length > 0 || !results.defaultModelAvailable) {
+        const cleanedAgentModels = { ...agentModels };
+        for (const agentKey of unavailableAgentKeys) {
+          // Set to empty string so agent stays without model until user chooses
+          cleanedAgentModels[agentKey] = '';
+        }
+        setAgentModels(cleanedAgentModels);
+
+        // Save cleaned agent models to Firestore + localStorage
+        try {
+          await UserProfile.updateAgentModels(user.uid, cleanedAgentModels);
+          saveAgentModels(cleanedAgentModels);
+          await refreshProfile();
+        } catch (saveErr) {
+          console.error('Failed to save cleaned agent models:', saveErr);
+        }
+
+        // Clear the default model if unavailable
+        if (!results.defaultModelAvailable) {
+          const cleanedConfig = { ...aiConfig, model: '' };
+          setAiConfig(cleanedConfig);
+          try {
+            await UserProfile.updateAiConfig(user.uid, cleanedConfig);
+            await refreshProfile();
+          } catch (saveErr) {
+            console.error('Failed to save cleaned AI config:', saveErr);
+          }
+        }
+      }
+
+      setVerifyStatus('done');
+    } catch (err) {
+      setVerifyStatus('error');
+      setVerifyError(err.message || 'Erro ao verificar modelos');
+    }
   };
 
   const currentPreset = AI_PRESETS[aiProvider];
@@ -554,6 +617,103 @@ export default function Profile() {
                 </span>
               )}
             </div>
+
+            {/* Verify Models button + results (OpenRouter only) */}
+            {aiProvider === 'openrouter' && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleVerifyModels}
+                    disabled={verifyStatus === 'verifying'}
+                    className="border-purple-600/50 text-purple-300 hover:text-white hover:bg-purple-800/30"
+                  >
+                    {verifyStatus === 'verifying' ? (
+                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Verificando...</>
+                    ) : (
+                      <><ShieldCheck className="w-3.5 h-3.5 mr-1.5" />Verificar Modelos</>
+                    )}
+                  </Button>
+                  {verifyStatus === 'done' && verifyResults && (
+                    <span className="text-xs text-slate-400">
+                      {verifyResults.unavailableCatalogIds.length === 0 &&
+                       Object.keys(verifyResults.unavailableAgentModels).length === 0 &&
+                       verifyResults.defaultModelAvailable
+                        ? <span className="flex items-center gap-1.5 text-green-400"><CheckCircle className="w-3.5 h-3.5" />Todos os modelos estão disponíveis!</span>
+                        : <span className="flex items-center gap-1.5 text-amber-400"><AlertCircle className="w-3.5 h-3.5" />Modelos indisponíveis foram removidos automaticamente.</span>
+                      }
+                    </span>
+                  )}
+                  {verifyStatus === 'error' && (
+                    <span className="flex items-center gap-1.5 text-sm text-red-400">
+                      <AlertCircle className="w-4 h-4" />
+                      {verifyError || 'Erro ao verificar modelos'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Verification results detail */}
+                {verifyStatus === 'done' && verifyResults && (
+                  (verifyResults.unavailableCatalogIds.length > 0 ||
+                   Object.keys(verifyResults.unavailableAgentModels).length > 0 ||
+                   !verifyResults.defaultModelAvailable) && (
+                    <div className="p-4 bg-amber-900/20 border border-amber-500/20 rounded-lg space-y-2">
+                      <p className="text-amber-300 text-sm font-medium flex items-center gap-1.5">
+                        <Trash2 className="w-4 h-4" />
+                        Modelos indisponíveis encontrados
+                      </p>
+
+                      {!verifyResults.defaultModelAvailable && (
+                        <p className="text-amber-200/70 text-xs">
+                          ⚠ Modelo padrão <code className="bg-slate-800 px-1 rounded">{aiConfig.model || '(nenhum)'}</code> foi limpo — selecione um novo modelo.
+                        </p>
+                      )}
+
+                      {Object.keys(verifyResults.unavailableAgentModels).length > 0 && (
+                        <div>
+                          <p className="text-amber-200/70 text-xs mb-1">
+                            ⚠ Modelos de agentes removidos ({Object.keys(verifyResults.unavailableAgentModels).length}):
+                          </p>
+                          <ul className="text-xs text-slate-400 space-y-0.5 pl-4">
+                            {Object.entries(verifyResults.unavailableAgentModels).map(([agentKey, modelId]) => {
+                              const agent = PIPELINE_AGENT_DEFS.find((a) => a.key === agentKey);
+                              return (
+                                <li key={agentKey}>
+                                  <span className="text-slate-300">{agent?.label || agentKey}</span>
+                                  {' → '}
+                                  <code className="bg-slate-800 px-1 rounded text-red-400">{modelId}</code>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+
+                      {verifyResults.unavailableCatalogIds.length > 0 && (
+                        <div>
+                          <p className="text-amber-200/70 text-xs mb-1">
+                            ⚠ Modelos do catálogo indisponíveis ({verifyResults.unavailableCatalogIds.length}):
+                          </p>
+                          <ul className="text-xs text-slate-400 space-y-0.5 pl-4 max-h-32 overflow-y-auto">
+                            {verifyResults.unavailableCatalogIds.map((id) => (
+                              <li key={id}>
+                                <code className="bg-slate-800 px-1 rounded text-red-400">{id}</code>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-slate-500 mt-1">
+                        Selecione novos modelos para os agentes afetados na seção &quot;Modelos por Agente&quot; abaixo.
+                      </p>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
 
             <div className="p-4 bg-blue-900/20 border border-blue-500/20 rounded-lg">
               <p className="text-blue-300 text-sm">
