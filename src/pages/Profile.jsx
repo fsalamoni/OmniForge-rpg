@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
 import { AI_PRESETS, isGeminiUrl, geminiApiBase } from '@/lib/aiClient';
-import { useUserCatalog, verifyModelAvailability } from '@/lib/model-catalog';
+import { useUserCatalog, verifyModelAvailability, removeModelsFromCatalog } from '@/lib/model-catalog';
 import { AVAILABLE_MODELS, PIPELINE_AGENT_DEFS, loadAgentModels, saveAgentModels, getDefaultModelMap } from '@/lib/model-config';
 import { useMutation } from '@tanstack/react-query';
 import ModelCatalogModal from '@/components/ModelCatalogModal';
@@ -73,13 +73,17 @@ export default function Profile() {
   // Custom model IDs from Firestore
   const [customModelIds, setCustomModelIds] = useState([]);
 
+  // Removed (unavailable) model IDs from Firestore
+  const [removedModelIds, setRemovedModelIds] = useState([]);
+
   // Per-agent model map
   const [agentModels, setAgentModels] = useState(() => getDefaultModelMap());
 
   // Use the enhanced catalog hook — returns user's models + all OpenRouter models
   const { userModels, allModels, isLoading: catalogLoading } = useUserCatalog(
     aiProvider === 'openrouter' ? aiConfig.apiKey : undefined,
-    customModelIds
+    customModelIds,
+    removedModelIds
   );
 
   // IDs of all models in the user's catalog (curated + custom)
@@ -104,6 +108,10 @@ export default function Profile() {
     // Load custom model IDs from Firestore
     if (Array.isArray(userProfile.customModelIds)) {
       setCustomModelIds(userProfile.customModelIds);
+    }
+    // Load removed model IDs from Firestore
+    if (Array.isArray(userProfile.removedModelIds)) {
+      setRemovedModelIds(userProfile.removedModelIds);
     }
     // Load per-agent model map from Firestore (fallback to localStorage)
     setAgentModels(loadAgentModels(userProfile.agentModels));
@@ -216,7 +224,22 @@ export default function Profile() {
   // Handle adding a model from the OpenRouter browser to the user's catalog
   const handleAddModelFromBrowser = async (model) => {
     const curatedIds = new Set(AVAILABLE_MODELS.map((m) => m.id));
-    // Don't add curated models (they're always included)
+    const isRemovedCurated = curatedIds.has(model.id) && removedModelIds.includes(model.id);
+
+    // If it's a curated model that was previously removed, un-remove it
+    if (isRemovedCurated) {
+      const newRemovedIds = removedModelIds.filter((id) => id !== model.id);
+      setRemovedModelIds(newRemovedIds);
+      try {
+        await UserProfile.updateRemovedModels(user.uid, newRemovedIds);
+        await refreshProfile();
+      } catch (err) {
+        console.error('Failed to restore removed model:', err);
+      }
+      return;
+    }
+
+    // Don't add curated models that are still active (they're always included)
     if (curatedIds.has(model.id)) return;
     // Don't add duplicates
     if (customModelIds.includes(model.id)) return;
@@ -257,36 +280,65 @@ export default function Profile() {
       const results = await verifyModelAvailability(key, agentModels, aiConfig.model);
       setVerifyResults(results);
 
-      // Auto-cleanup: remove unavailable agent models
       const unavailableAgentKeys = Object.keys(results.unavailableAgentModels);
-      if (unavailableAgentKeys.length > 0 || !results.defaultModelAvailable) {
-        const cleanedAgentModels = { ...agentModels };
-        for (const agentKey of unavailableAgentKeys) {
-          // Set to empty string so agent stays without model until user chooses
-          cleanedAgentModels[agentKey] = '';
-        }
-        setAgentModels(cleanedAgentModels);
+      const hasUnavailableCatalog = results.unavailableCatalogIds.length > 0;
+      const hasUnavailableAgents = unavailableAgentKeys.length > 0;
+      const hasUnavailableDefault = !results.defaultModelAvailable;
 
-        // Save cleaned agent models to Firestore + localStorage
+      if (hasUnavailableCatalog || hasUnavailableAgents || hasUnavailableDefault) {
+        const unavailableSet = new Set(results.unavailableCatalogIds);
+
+        // 1) Remove unavailable models from the in-memory catalog
+        removeModelsFromCatalog(unavailableSet);
+
+        // 2) Persist removed catalog model IDs to Firestore
+        const newRemovedIds = [...new Set([...removedModelIds, ...results.unavailableCatalogIds])];
+        setRemovedModelIds(newRemovedIds);
         try {
-          await UserProfile.updateAgentModels(user.uid, cleanedAgentModels);
-          saveAgentModels(cleanedAgentModels);
-          await refreshProfile();
+          await UserProfile.updateRemovedModels(user.uid, newRemovedIds);
         } catch (saveErr) {
-          console.error('Failed to save cleaned agent models:', saveErr);
+          console.error('Failed to save removed model IDs:', saveErr);
         }
 
-        // Clear the default model if unavailable
-        if (!results.defaultModelAvailable) {
+        // 3) Remove unavailable custom model IDs
+        const unavailableCustomIds = customModelIds.filter((id) => !results.availableIds.has(id));
+        if (unavailableCustomIds.length > 0) {
+          const cleanedCustomIds = customModelIds.filter((id) => results.availableIds.has(id));
+          setCustomModelIds(cleanedCustomIds);
+          try {
+            await UserProfile.updateModelCatalog(user.uid, cleanedCustomIds);
+          } catch (saveErr) {
+            console.error('Failed to save cleaned custom models:', saveErr);
+          }
+        }
+
+        // 4) Reset unavailable agent models to empty string
+        if (hasUnavailableAgents) {
+          const cleanedAgentModels = { ...agentModels };
+          for (const agentKey of unavailableAgentKeys) {
+            cleanedAgentModels[agentKey] = '';
+          }
+          setAgentModels(cleanedAgentModels);
+          try {
+            await UserProfile.updateAgentModels(user.uid, cleanedAgentModels);
+            saveAgentModels(cleanedAgentModels);
+          } catch (saveErr) {
+            console.error('Failed to save cleaned agent models:', saveErr);
+          }
+        }
+
+        // 5) Clear the default model if unavailable
+        if (hasUnavailableDefault) {
           const cleanedConfig = { ...aiConfig, model: '' };
           setAiConfig(cleanedConfig);
           try {
             await UserProfile.updateAiConfig(user.uid, cleanedConfig);
-            await refreshProfile();
           } catch (saveErr) {
             console.error('Failed to save cleaned AI config:', saveErr);
           }
         }
+
+        await refreshProfile();
       }
 
       setVerifyStatus('done');
@@ -642,7 +694,7 @@ export default function Profile() {
                        Object.keys(verifyResults.unavailableAgentModels).length === 0 &&
                        verifyResults.defaultModelAvailable
                         ? <span className="flex items-center gap-1.5 text-green-400"><CheckCircle className="w-3.5 h-3.5" />Todos os modelos estão disponíveis!</span>
-                        : <span className="flex items-center gap-1.5 text-amber-400"><AlertCircle className="w-3.5 h-3.5" />Modelos indisponíveis foram removidos automaticamente.</span>
+                        : <span className="flex items-center gap-1.5 text-green-400"><CheckCircle className="w-3.5 h-3.5" />Modelos indisponíveis foram excluídos do catálogo.</span>
                       }
                     </span>
                   )}
@@ -659,10 +711,10 @@ export default function Profile() {
                   (verifyResults.unavailableCatalogIds.length > 0 ||
                    Object.keys(verifyResults.unavailableAgentModels).length > 0 ||
                    !verifyResults.defaultModelAvailable) && (
-                    <div className="p-4 bg-amber-900/20 border border-amber-500/20 rounded-lg space-y-2">
-                      <p className="text-amber-300 text-sm font-medium flex items-center gap-1.5">
+                    <div className="p-4 bg-green-900/20 border border-green-500/20 rounded-lg space-y-2">
+                      <p className="text-green-300 text-sm font-medium flex items-center gap-1.5">
                         <Trash2 className="w-4 h-4" />
-                        Modelos indisponíveis encontrados
+                        Modelos indisponíveis excluídos do catálogo
                       </p>
 
                       {!verifyResults.defaultModelAvailable && (
@@ -694,7 +746,7 @@ export default function Profile() {
                       {verifyResults.unavailableCatalogIds.length > 0 && (
                         <div>
                           <p className="text-amber-200/70 text-xs mb-1">
-                            ⚠ Modelos do catálogo indisponíveis ({verifyResults.unavailableCatalogIds.length}):
+                            ⚠ Modelos excluídos do catálogo ({verifyResults.unavailableCatalogIds.length}):
                           </p>
                           <ul className="text-xs text-slate-400 space-y-0.5 pl-4 max-h-32 overflow-y-auto">
                             {verifyResults.unavailableCatalogIds.map((id) => (

@@ -350,14 +350,27 @@ export function useCatalogModels(apiKey?: string): {
 }
 
 /**
+ * Remove modelos do catálogo em memória pelo ID e notifica os listeners.
+ * Usado após verificação para excluir modelos indisponíveis.
+ */
+export function removeModelsFromCatalog(idsToRemove: Set<string>): void {
+  if (idsToRemove.size === 0) return;
+  _catalog = _catalog.filter((m) => !idsToRemove.has(m.id));
+  notifyListeners();
+}
+
+/**
  * Hook React que retorna o catálogo personalizado do usuário.
- * Combina modelos curados (AVAILABLE_MODELS) + modelos customizados adicionados pelo usuário.
+ * Combina modelos curados (AVAILABLE_MODELS) + modelos customizados adicionados pelo usuário,
+ * excluindo modelos marcados como removidos (indisponíveis).
  * @param apiKey Chave OpenRouter para buscar modelos extras
  * @param customModelIds IDs de modelos customizados do Firestore do usuário
+ * @param removedModelIds IDs de modelos removidos (indisponíveis) do Firestore do usuário
  */
 export function useUserCatalog(
   apiKey?: string,
   customModelIds?: string[],
+  removedModelIds?: string[],
 ): {
   /** Modelos curados + customizados do usuário */
   userModels: ModelOption[];
@@ -370,17 +383,20 @@ export function useUserCatalog(
   const [merged, setMerged] = useState<ModelOption[]>(AVAILABLE_MODELS);
 
   useEffect(() => {
+    const removedSet = new Set(removedModelIds ?? []);
+    const filteredCurated = AVAILABLE_MODELS.filter((m) => !removedSet.has(m.id));
+
     if (!customModelIds || customModelIds.length === 0) {
-      setMerged([...AVAILABLE_MODELS]);
+      setMerged([...filteredCurated]);
       return;
     }
-    const curatedIds = new Set(AVAILABLE_MODELS.map((m) => m.id));
+    const curatedIds = new Set(filteredCurated.map((m) => m.id));
     const extraModels = customModelIds
-      .filter((id) => !curatedIds.has(id))
+      .filter((id) => !curatedIds.has(id) && !removedSet.has(id))
       .map((id) => allModels.find((m) => m.id === id))
       .filter(Boolean) as ModelOption[];
-    setMerged([...AVAILABLE_MODELS, ...extraModels]);
-  }, [customModelIds, allModels]);
+    setMerged([...filteredCurated, ...extraModels]);
+  }, [customModelIds, removedModelIds, allModels]);
 
   return { userModels: merged, allModels, isLoading };
 }
