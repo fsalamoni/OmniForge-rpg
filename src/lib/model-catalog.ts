@@ -268,14 +268,27 @@ export async function verifyModelAvailability(
   agentModels: Record<string, string>,
   defaultModel: string,
 ): Promise<VerifyResult> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`;
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error('Chave de API não configurada. Configure sua chave em Perfil → Configuração de IA.');
   }
 
-  const res = await fetch('https://openrouter.ai/api/v1/models', { headers });
+  const trimmedKey = apiKey.trim();
+  const commonHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${trimmedKey}`,
+  };
+
+  // Validate the API key first using the authenticated /auth/key endpoint.
+  // GET /v1/models is a public endpoint and does not validate authentication,
+  // so we must use /auth/key to confirm the key is actually valid.
+  const authRes = await fetch('https://openrouter.ai/api/v1/auth/key', { headers: commonHeaders });
+  if (!authRes.ok) {
+    const errBody = await authRes.json().catch(() => ({})) as { error?: { message?: string } };
+    const msg = errBody?.error?.message || `${authRes.status} ${authRes.statusText}`;
+    throw new Error(`Chave de API OpenRouter inválida: ${msg}. Verifique sua chave em Perfil → Configuração de IA.`);
+  }
+
+  const res = await fetch('https://openrouter.ai/api/v1/models', { headers: commonHeaders });
   if (!res.ok) {
     throw new Error(`OpenRouter API retornou ${res.status}: ${res.statusText}`);
   }
