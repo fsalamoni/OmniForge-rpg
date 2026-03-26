@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
+import { useQuery } from '@tanstack/react-query';
+import { HelpContent } from '@/firebase/db';
+import {
   HelpCircle,
   BookOpen,
   Sparkles,
   Copy,
   Target,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Award,
+  Play,
+  Youtube,
+  ExternalLink
 } from 'lucide-react';
 
 const FAQItem = ({ question, answer }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div 
+    <div
       className="p-4 bg-slate-900/50 backdrop-blur-xl border border-purple-900/20 hover:border-purple-500/50 rounded-xl transition-all cursor-pointer"
       onClick={() => setIsOpen(!isOpen)}
     >
@@ -34,6 +40,135 @@ const FAQItem = ({ question, answer }) => {
     </div>
   );
 };
+
+function ShowcaseSection() {
+  const [activeVideo, setActiveVideo] = useState(0);
+  const defaults = HelpContent.defaultContent();
+
+  const { data: content } = useQuery({
+    queryKey: ['helpShowcase'],
+    queryFn: () => HelpContent.get(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const showcase = content || defaults;
+  const videos = showcase.videos || defaults.videos;
+  const current = videos[activeVideo] || videos[0];
+
+  if (!current) return null;
+
+  return (
+    <Card className="overflow-hidden bg-gradient-to-br from-slate-900/80 via-purple-950/40 to-slate-900/80 backdrop-blur-xl border-purple-500/30 shadow-lg shadow-purple-900/10">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="p-2.5 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-lg shadow-amber-900/30">
+            <Award className="w-6 h-6 text-white" />
+          </div>
+          <CardTitle className="text-2xl text-white">{showcase.title || defaults.title}</CardTitle>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        {/* Texto descritivo */}
+        <div className="text-slate-300 leading-relaxed whitespace-pre-line text-[0.95rem]">
+          {showcase.description || defaults.description}
+        </div>
+
+        {/* Player principal */}
+        <div className="space-y-4">
+          <div className="relative w-full rounded-xl overflow-hidden border border-purple-500/20 shadow-xl shadow-purple-900/20 bg-black">
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={`https://www.youtube.com/embed/${current.videoId}?rel=0`}
+                title={current.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+
+          {/* Info do vídeo atual */}
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 p-2 bg-red-600/20 rounded-lg">
+              <Youtube className="w-5 h-5 text-red-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-white font-semibold leading-tight">{current.title}</h4>
+              <p className="text-slate-400 text-sm mt-1">{current.description}</p>
+              <p className="text-slate-500 text-xs mt-2 flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 bg-red-500 rounded-full" />
+                Canal: <span className="text-slate-400 font-medium">{current.channel}</span>
+                <span className="mx-1">|</span>
+                Todos os direitos reservados ao autor original
+              </p>
+            </div>
+            <a
+              href={`https://www.youtube.com/watch?v=${current.videoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-shrink-0 p-2 text-slate-400 hover:text-white transition-colors"
+              title="Abrir no YouTube"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        </div>
+
+        {/* Seletor de vídeos */}
+        {videos.length > 1 && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-slate-400 uppercase tracking-wider">
+              Mais vídeos sobre o tema
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {videos.map((video, idx) => (
+                <button
+                  key={video.videoId}
+                  onClick={() => setActiveVideo(idx)}
+                  className={`group relative rounded-xl overflow-hidden border transition-all text-left ${
+                    idx === activeVideo
+                      ? 'border-purple-500 ring-1 ring-purple-500/50 shadow-lg shadow-purple-900/20'
+                      : 'border-slate-700/50 hover:border-purple-500/50'
+                  }`}
+                >
+                  {/* Thumbnail */}
+                  <div className="relative aspect-video bg-slate-800">
+                    <img
+                      src={`https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
+                      alt={video.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    {idx !== activeVideo && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors">
+                        <Play className="w-8 h-8 text-white/80 group-hover:text-white group-hover:scale-110 transition-all" />
+                      </div>
+                    )}
+                    {idx === activeVideo && (
+                      <div className="absolute top-2 left-2 px-2 py-0.5 bg-purple-600 rounded text-[0.65rem] font-bold text-white uppercase tracking-wide">
+                        Reproduzindo
+                      </div>
+                    )}
+                  </div>
+                  {/* Título */}
+                  <div className="p-2.5 bg-slate-900/80">
+                    <p className={`text-xs font-medium leading-tight line-clamp-2 ${
+                      idx === activeVideo ? 'text-purple-300' : 'text-slate-300 group-hover:text-white'
+                    }`}>
+                      {video.title}
+                    </p>
+                    <p className="text-[0.65rem] text-slate-500 mt-1">{video.channel}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Help() {
   const faqs = [
@@ -112,6 +247,9 @@ export default function Help() {
           Aprenda a usar todas as funcionalidades da plataforma
         </p>
       </div>
+
+      {/* Seção de Destaque — Inspiração e Metodologia */}
+      <ShowcaseSection />
 
       {/* Ferramentas e Dicas */}
       <div>
