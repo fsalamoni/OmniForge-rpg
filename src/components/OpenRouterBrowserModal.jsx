@@ -18,7 +18,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -468,7 +467,13 @@ export default function OpenRouterBrowserModal({
         </div>
 
         {/* Model list */}
-        <ScrollArea className="flex-1 min-h-0">
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden model-catalog-scroll"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(148,163,184,0.45) transparent',
+          }}
+        >
           <div className="divide-y divide-slate-800/50">
             {filteredModels.length === 0 ? (
               <div className="px-6 py-12 text-center text-slate-500">
@@ -499,7 +504,7 @@ export default function OpenRouterBrowserModal({
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Footer */}
         <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between shrink-0">

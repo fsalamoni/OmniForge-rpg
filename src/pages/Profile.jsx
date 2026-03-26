@@ -253,7 +253,7 @@ export default function Profile() {
     }
   };
 
-  // Handle adding a model from the OpenRouter browser to the user's catalog
+  // Handle adding a model from the provider browser to the user's catalog
   const handleAddModelFromBrowser = async (model) => {
     const curatedIds = new Set(AVAILABLE_MODELS.map((m) => m.id));
     const isRemovedCurated = curatedIds.has(model.id) && new Set(removedModelIds).has(model.id);

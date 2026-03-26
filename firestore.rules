@@ -61,9 +61,10 @@ service cloud.firestore {
     }
 
     // ─── Agentes de IA (Overrides de Prompts) ─────────────────────────────────
-    // Apenas admin pode ler/escrever configurações de agentes de IA.
+    // Qualquer usuário autenticado pode ler configurações de agentes de IA.
+    // Apenas admin pode escrever/editar configurações de agentes de IA.
     match /aiAgents/{agentId} {
-      allow read:  if request.auth != null && isAdmin();
+      allow read:  if request.auth != null;
       allow write: if request.auth != null && isAdmin();
     }
 
