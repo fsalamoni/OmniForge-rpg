@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { AVAILABLE_MODELS, type ModelOption, type AgentCategory } from './model-config';
+import { sanitizeApiKey } from './aiClient';
 
 // ---------------------------------------------------------------------------
 // Tipos da resposta da API OpenRouter
@@ -186,7 +187,10 @@ export async function fetchOpenRouterModels(apiKey?: string): Promise<ModelOptio
       'Content-Type': 'application/json',
     };
     if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`;
+      const cleanKey = sanitizeApiKey(apiKey);
+      if (cleanKey) {
+        headers['Authorization'] = `Bearer ${cleanKey}`;
+      }
     }
 
     const res = await fetch('https://openrouter.ai/api/v1/models', { headers });
@@ -272,7 +276,10 @@ export async function verifyModelAvailability(
     throw new Error('Chave de API não configurada. Configure sua chave em Perfil → Configuração de IA.');
   }
 
-  const trimmedKey = apiKey.trim();
+  // Strip a leading "Bearer " prefix (in case the user pasted the full header value)
+  // and remove non-printable / non-ASCII characters that are invalid in HTTP headers.
+  // Delegates to the shared sanitizeApiKey utility for consistency.
+  const trimmedKey = sanitizeApiKey(apiKey);
   const commonHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${trimmedKey}`,
@@ -285,7 +292,7 @@ export async function verifyModelAvailability(
   if (!authRes.ok) {
     const errBody = await authRes.json().catch(() => ({})) as { error?: { message?: string } };
     const msg = errBody?.error?.message || `${authRes.status} ${authRes.statusText}`;
-    throw new Error(`Chave de API OpenRouter inválida: ${msg}. Verifique sua chave em Perfil → Configuração de IA.`);
+    throw new Error(`Chave de API OpenRouter inválida ou não reconhecida (${msg}). Verifique se a chave está correta e não expirou em Perfil → Configuração de IA.`);
   }
 
   const res = await fetch('https://openrouter.ai/api/v1/models', { headers: commonHeaders });

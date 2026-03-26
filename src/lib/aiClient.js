@@ -58,6 +58,27 @@ export function isOpenRouterUrl(baseUrl) {
 }
 
 /**
+ * Sanitizes an API key so it is safe to use as an HTTP Bearer token.
+ * - Strips a leading "Bearer " prefix (common copy-paste mistake).
+ * - Removes non-printable / non-ASCII characters (U+0000–U+001F and U+007F–U+FFFF).
+ *   Such characters (e.g. zero-width spaces, U+200B) pass String.prototype.trim()
+ *   but are invalid in HTTP header values; browsers can silently drop the
+ *   Authorization header when they are present, causing OpenRouter to return
+ *   "Missing Authentication header" (HTTP 401).
+ * - Trims leading/trailing whitespace.
+ *
+ * @param {string} key - Raw key string, may be empty/null/undefined.
+ * @returns {string} Sanitized key, or empty string if nothing valid remains.
+ */
+export function sanitizeApiKey(key) {
+  if (!key || typeof key !== 'string') return '';
+  return key
+    .replace(/^Bearer\s+/i, '')
+    .replace(/[^\x20-\x7E]/g, '')
+    .trim();
+}
+
+/**
  * Validates the AI configuration object.
  * Returns null if valid, or an error message string if invalid.
  * @param {object} aiConfig - { apiKey, baseUrl, model }

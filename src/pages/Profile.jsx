@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
-import { AI_PRESETS, isGeminiUrl, geminiApiBase, isOpenRouterUrl } from '@/lib/aiClient';
+import { AI_PRESETS, isGeminiUrl, geminiApiBase, isOpenRouterUrl, sanitizeApiKey } from '@/lib/aiClient';
 import { useUserCatalog, verifyModelAvailability, removeModelsFromCatalog } from '@/lib/model-catalog';
 import { AVAILABLE_MODELS, PIPELINE_AGENT_DEFS, loadAgentModels, saveAgentModels, getDefaultModelMap } from '@/lib/model-config';
 import { useMutation } from '@tanstack/react-query';
@@ -178,8 +178,20 @@ export default function Profile() {
     setTestStatus(null);
   };
 
+  /**
+   * Resolves the effective API key for testing/verifying.
+   * - Falls back to the saved profile key when the input field is blank
+   *   (same "keep current key" behaviour as handleAiSubmit).
+   * - Delegates sanitization (strip "Bearer " prefix, remove non-printable chars)
+   *   to the shared sanitizeApiKey utility.
+   */
+  const resolveApiKey = () => {
+    const raw = (aiConfig.apiKey || '').trim() || (userProfile?.aiConfig?.apiKey || '').trim();
+    return sanitizeApiKey(raw);
+  };
+
   const handleTestKey = async () => {
-    const key = (aiConfig.apiKey || '').trim();
+    const key = resolveApiKey();
     if (!key || !aiConfig.baseUrl) {
       setTestError('Preencha a chave de API antes de testar.');
       setTestStatus('error');
@@ -213,7 +225,10 @@ export default function Profile() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err?.error?.message || `Chave inválida: ${res.status} ${res.statusText}`);
+          const msg = err?.error?.message || `${res.status} ${res.statusText}`;
+          throw new Error(
+            `Chave de API inválida ou não reconhecida (${msg}). Verifique se a chave está correta e não expirou.`
+          );
         }
       } else {
         // OpenAI-compatible: validate via GET /models (requires auth for OpenAI and most providers)
@@ -282,7 +297,7 @@ export default function Profile() {
   // Verify & cleanup unavailable models
   // ---------------------------------------------------------------------------
   const handleVerifyModels = async () => {
-    const key = (aiConfig.apiKey || '').trim();
+    const key = resolveApiKey();
     if (!key) {
       setVerifyError('Configure sua chave de API antes de verificar os modelos.');
       setVerifyStatus('error');
