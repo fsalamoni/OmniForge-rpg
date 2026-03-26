@@ -288,7 +288,7 @@ export async function verifyModelAvailability(
     .map((m) => m.id)
     .filter((id) => !liveIds.has(id));
 
-  // Check which agent models are unavailable
+  // Check which agent models are unavailable (skip empty/unset assignments)
   const unavailableAgentModels: Record<string, string> = {};
   for (const [agentKey, modelId] of Object.entries(agentModels)) {
     if (modelId && !liveIds.has(modelId)) {
@@ -296,7 +296,7 @@ export async function verifyModelAvailability(
     }
   }
 
-  // Check default model
+  // Check default model (empty string means no model selected — treated as valid)
   const defaultModelAvailable = !defaultModel || liveIds.has(defaultModel);
 
   // Total unique IDs checked

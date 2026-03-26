@@ -667,7 +667,7 @@ export default function Profile() {
 
                       {!verifyResults.defaultModelAvailable && (
                         <p className="text-amber-200/70 text-xs">
-                          ⚠ Modelo padrão <code className="bg-slate-800 px-1 rounded">{aiConfig.model || '(nenhum)'}</code> foi limpo — selecione um novo modelo.
+                          ⚠ Modelo padrão <code className="bg-slate-800 px-1 rounded">{aiConfig.model || '(nenhum)'}</code> não está mais disponível e foi removido — selecione um novo modelo.
                         </p>
                       )}
 
