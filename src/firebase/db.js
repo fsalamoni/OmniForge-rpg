@@ -401,6 +401,54 @@ export const AdminDB = {
   }
 };
 
+// ─── HelpContent — Conteúdo editável da Central de Ajuda ─────────────────────
+// Armazena texto e vídeos exibidos na seção de destaque da página Ajuda.
+// Documento único com ID fixo 'helpShowcase'.
+
+export const HelpContent = {
+  DOC_ID: 'helpShowcase',
+
+  async get() {
+    const snap = await getDoc(doc(db, 'siteContent', this.DOC_ID));
+    return toData(snap);
+  },
+
+  async save(data) {
+    await setDoc(doc(db, 'siteContent', this.DOC_ID), {
+      ...data,
+      updatedAt: now()
+    }, { merge: true });
+  },
+
+  defaultContent() {
+    return {
+      title: 'Inspiração e Metodologia',
+      description:
+        'A metodologia utilizada pelo OmniForge foi inspirada no trabalho do premiado Mestre Gabriel Camilo, ' +
+        'criador do canal Contos do Farol. Gabriel foi pioneiro em aplicar ferramentas de gestão e administração ' +
+        '— como o 5W2H — na criação de campanhas de RPG, transformando um processo muitas vezes caótico em uma ' +
+        'experiência estruturada e acessível.\n\n' +
+        'Seus vídeos e ensinamentos demonstram como técnicas do mundo corporativo podem ser adaptadas para criar ' +
+        'narrativas ricas, personagens complexos e aventuras memoráveis. Assista aos vídeos abaixo para conhecer ' +
+        'mais sobre essa abordagem inovadora.',
+      videos: [
+        {
+          videoId: '-HpOqg1jEoQ',
+          title: 'Como criar campanhas de RPG com 5W2H',
+          description: 'Gabriel Camilo ensina como utilizar a ferramenta 5W2H para estruturar campanhas de RPG completas e envolventes.',
+          channel: 'Contos do Farol'
+        },
+        {
+          videoId: '0lCvQvBi3DM',
+          title: 'Ferramentas de gestão aplicadas ao RPG',
+          description: 'Descubra como técnicas de gestão e administração podem revolucionar a forma como você cria e conduz suas aventuras.',
+          channel: 'Contos do Farol'
+        }
+      ]
+    };
+  }
+};
+
 // ─── AiAgent — Prompts Customizados dos Agentes de IA ────────────────────────
 // Os admins podem sobrescrever systemPrompt, promptTemplate e temperature de cada agente.
 // Os documentos têm IDs fixos (ex: 'question-what', 'campaign-generator').

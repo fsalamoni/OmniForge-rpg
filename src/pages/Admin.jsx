@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { useAuth } from '@/lib/AuthContext';
-import { AdminDB, SeedData, AiAgent } from '@/firebase/db';
+import { AdminDB, SeedData, AiAgent, HelpContent } from '@/firebase/db';
 import { DEFAULT_AGENTS, AGENT_IDS } from '@/lib/aiAgents';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,11 @@ import {
   ChevronRight,
   RotateCcw,
   Code2,
-  Thermometer
+  Thermometer,
+  FileText,
+  Youtube,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 
 // ─── Componente de Card de Estatística ──────────────────────────────────────
@@ -1000,6 +1004,311 @@ function TabAiAgents() {
   );
 }
 
+// ─── Aba: Conteúdo da Ajuda ──────────────────────────────────────────────────
+
+function TabHelpContent() {
+  const queryClient = useQueryClient();
+  const defaults = HelpContent.defaultContent();
+
+  const { data: content, isLoading } = useQuery({
+    queryKey: ['adminHelpContent'],
+    queryFn: () => HelpContent.get(),
+  });
+
+  const showcase = content || defaults;
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [videos, setVideos] = useState([]);
+  const [saveStatus, setSaveStatus] = useState(null);
+
+  // Dialog para adicionar/editar vídeo
+  const [videoDialog, setVideoDialog] = useState(false);
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [videoForm, setVideoForm] = useState({ videoId: '', title: '', description: '', channel: '' });
+
+  // Sincroniza form quando dados carregam
+  React.useEffect(() => {
+    if (showcase) {
+      setTitle(showcase.title || defaults.title);
+      setDescription(showcase.description || defaults.description);
+      setVideos(showcase.videos || defaults.videos);
+    }
+  }, [content]);
+
+  const saveMutation = useMutation({
+    mutationFn: (data) => HelpContent.save(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminHelpContent'] });
+      queryClient.invalidateQueries({ queryKey: ['helpShowcase'] });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(null), 3000);
+    },
+    onError: () => {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus(null), 5000);
+    }
+  });
+
+  const handleSave = () => {
+    setSaveStatus('saving');
+    saveMutation.mutate({ title, description, videos });
+  };
+
+  const handleRestoreDefaults = () => {
+    if (!confirm('Restaurar todo o conteúdo para os valores padrão?')) return;
+    setTitle(defaults.title);
+    setDescription(defaults.description);
+    setVideos(defaults.videos);
+    setSaveStatus('saving');
+    saveMutation.mutate({
+      title: defaults.title,
+      description: defaults.description,
+      videos: defaults.videos
+    });
+  };
+
+  // Extrai videoId de URL do YouTube
+  const extractVideoId = (url) => {
+    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : url.trim();
+  };
+
+  const openAddVideo = () => {
+    setEditingIdx(null);
+    setVideoForm({ videoId: '', title: '', description: '', channel: '' });
+    setVideoDialog(true);
+  };
+
+  const openEditVideo = (idx) => {
+    setEditingIdx(idx);
+    setVideoForm({ ...videos[idx] });
+    setVideoDialog(true);
+  };
+
+  const saveVideoForm = () => {
+    const newVideo = {
+      ...videoForm,
+      videoId: extractVideoId(videoForm.videoId || '')
+    };
+    if (!newVideo.videoId) return;
+
+    const updated = [...videos];
+    if (editingIdx !== null) {
+      updated[editingIdx] = newVideo;
+    } else {
+      updated.push(newVideo);
+    }
+    setVideos(updated);
+    setVideoDialog(false);
+  };
+
+  const removeVideo = (idx) => {
+    if (!confirm('Remover este vídeo?')) return;
+    setVideos(videos.filter((_, i) => i !== idx));
+  };
+
+  const moveVideo = (idx, direction) => {
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= videos.length) return;
+    const updated = [...videos];
+    [updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]];
+    setVideos(updated);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Conteúdo da Página Ajuda</h2>
+          <p className="text-slate-400 text-sm mt-1">
+            Edite o texto de destaque e os vídeos exibidos na Central de Ajuda
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRestoreDefaults} className="text-slate-300">
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Restaurar Padrão
+          </Button>
+          <Button onClick={handleSave} disabled={saveMutation.isPending} className="bg-purple-600 hover:bg-purple-700">
+            {saveStatus === 'saving' ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : saveStatus === 'saved' ? (
+              <CheckCircle className="w-4 h-4 mr-2" />
+            ) : saveStatus === 'error' ? (
+              <AlertCircle className="w-4 h-4 mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {saveStatus === 'saved' ? 'Salvo' : saveStatus === 'error' ? 'Erro' : 'Salvar'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Título da seção */}
+      <div className="space-y-2">
+        <Label className="text-slate-300">Título da Seção</Label>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Ex: Inspiração e Metodologia"
+          className="bg-slate-900/50 border-slate-700 text-white"
+        />
+      </div>
+
+      {/* Descrição */}
+      <div className="space-y-2">
+        <Label className="text-slate-300">Texto Descritivo</Label>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={8}
+          placeholder="Texto que será exibido na seção de destaque..."
+          className="bg-slate-900/50 border-slate-700 text-white font-mono text-sm leading-relaxed"
+        />
+        <p className="text-xs text-slate-500">Use quebras de linha para separar parágrafos.</p>
+      </div>
+
+      {/* Vídeos */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-slate-300 text-base">Vídeos</Label>
+          <Button variant="outline" size="sm" onClick={openAddVideo} className="text-slate-300">
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar Vídeo
+          </Button>
+        </div>
+
+        {videos.length === 0 && (
+          <div className="p-8 text-center border border-dashed border-slate-700 rounded-xl">
+            <Youtube className="w-10 h-10 text-slate-600 mx-auto mb-2" />
+            <p className="text-slate-500">Nenhum vídeo adicionado</p>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {videos.map((video, idx) => (
+            <div key={idx} className="flex items-center gap-4 p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
+              {/* Thumbnail */}
+              <div className="flex-shrink-0 w-28 aspect-video rounded-lg overflow-hidden bg-slate-800">
+                <img
+                  src={`https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`}
+                  alt={video.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium truncate">{video.title || 'Sem título'}</p>
+                <p className="text-slate-400 text-sm truncate">{video.description || '—'}</p>
+                <p className="text-slate-500 text-xs mt-1">
+                  Canal: {video.channel || '—'} | ID: {video.videoId}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex-shrink-0 flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={() => moveVideo(idx, -1)} disabled={idx === 0}
+                  className="text-slate-400 hover:text-white px-2">
+                  <ChevronUp className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => moveVideo(idx, 1)} disabled={idx === videos.length - 1}
+                  className="text-slate-400 hover:text-white px-2">
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => openEditVideo(idx)} className="text-slate-400 hover:text-white px-2">
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => removeVideo(idx)} className="text-red-400 hover:text-red-300 px-2">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Dialog para adicionar/editar vídeo */}
+      <Dialog open={videoDialog} onOpenChange={setVideoDialog}>
+        <DialogContent className="bg-slate-900 border-slate-700 max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {editingIdx !== null ? 'Editar Vídeo' : 'Adicionar Vídeo'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label className="text-slate-300">URL ou ID do YouTube</Label>
+              <Input
+                value={videoForm.videoId}
+                onChange={(e) => setVideoForm({ ...videoForm, videoId: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=... ou apenas o ID"
+                className="bg-slate-800 border-slate-700 text-white"
+              />
+              {videoForm.videoId && (
+                <div className="w-full aspect-video rounded-lg overflow-hidden bg-slate-800 mt-2">
+                  <img
+                    src={`https://img.youtube.com/vi/${extractVideoId(videoForm.videoId)}/mqdefault.jpg`}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Título do Vídeo</Label>
+              <Input
+                value={videoForm.title}
+                onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
+                placeholder="Ex: Como criar campanhas com 5W2H"
+                className="bg-slate-800 border-slate-700 text-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Descrição</Label>
+              <Textarea
+                value={videoForm.description}
+                onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })}
+                rows={3}
+                placeholder="Breve descrição do conteúdo do vídeo..."
+                className="bg-slate-800 border-slate-700 text-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Canal / Autor</Label>
+              <Input
+                value={videoForm.channel}
+                onChange={(e) => setVideoForm({ ...videoForm, channel: e.target.value })}
+                placeholder="Ex: Contos do Farol"
+                className="bg-slate-800 border-slate-700 text-white"
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setVideoDialog(false)} className="text-slate-300">
+                Cancelar
+              </Button>
+              <Button onClick={saveVideoForm} className="bg-purple-600 hover:bg-purple-700"
+                disabled={!videoForm.videoId}>
+                {editingIdx !== null ? 'Atualizar' : 'Adicionar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ─── Componente Principal: Admin ─────────────────────────────────────────────
 
 export default function Admin() {
@@ -1077,6 +1386,10 @@ export default function Admin() {
             <Bot className="w-4 h-4 mr-2" />
             Agentes de IA
           </TabsTrigger>
+          <TabsTrigger value="help-content" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-slate-400">
+            <FileText className="w-4 h-4 mr-2" />
+            Conteúdo
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
@@ -1096,6 +1409,9 @@ export default function Admin() {
         </TabsContent>
         <TabsContent value="ai-agents" className="mt-6">
           <TabAiAgents />
+        </TabsContent>
+        <TabsContent value="help-content" className="mt-6">
+          <TabHelpContent />
         </TabsContent>
       </Tabs>
     </div>
