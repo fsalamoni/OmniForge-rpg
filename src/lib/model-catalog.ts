@@ -1,13 +1,14 @@
 /**
  * OmniForge RPG — Model Catalog
  *
- * Cache em memória + carregamento dinâmico a partir da API OpenRouter.
+ * Cache em memória + carregamento dinâmico a partir de múltiplos provedores de IA.
+ * Suporta OpenRouter, OpenAI, Gemini, DeepSeek, Anthropic, Ollama e Custom.
  * Faz fallback para AVAILABLE_MODELS quando a API estiver indisponível.
  */
 
 import { useState, useEffect } from 'react';
 import { AVAILABLE_MODELS, type ModelOption, type AgentCategory } from './model-config';
-import { sanitizeApiKey } from './aiClient';
+import { sanitizeApiKey, AI_PRESETS, isGeminiUrl, geminiApiBase } from './aiClient';
 
 // ---------------------------------------------------------------------------
 // Tipos da resposta da API OpenRouter
@@ -223,6 +224,155 @@ export async function fetchOpenRouterModels(apiKey?: string): Promise<ModelOptio
 }
 
 // ---------------------------------------------------------------------------
+// Fetch de modelos para provedores genéricos (OpenAI-compatible, Gemini, etc.)
+// ---------------------------------------------------------------------------
+
+/**
+ * Converte um modelo genérico (OpenAI-compatible) para o formato ModelOption.
+ */
+function genericModelToOption(id: string, providerName: string): ModelOption {
+  const tier = inferTier(id, id);
+  return {
+    id,
+    label: id,
+    provider: providerName,
+    tier,
+    description: '',
+    contextWindow: 0,
+    inputCost: 0,
+    outputCost: 0,
+    isFree: false,
+    agentFit: inferFitScores(tier, id),
+  };
+}
+
+/**
+ * Converte um modelo do preset (AI_PRESETS.models) para o formato ModelOption.
+ */
+export function presetModelToOption(m: { value: string; label: string }, providerName: string): ModelOption {
+  const tier = inferTier(m.value, m.label);
+  return {
+    id: m.value,
+    label: m.label,
+    provider: providerName,
+    tier,
+    description: '',
+    contextWindow: 0,
+    inputCost: 0,
+    outputCost: 0,
+    isFree: false,
+    agentFit: inferFitScores(tier, m.value, m.label),
+  };
+}
+
+/**
+ * Busca modelos disponíveis em provedores OpenAI-compatible (OpenAI, DeepSeek, etc.).
+ */
+async function fetchOpenAICompatibleModels(baseUrl: string, apiKey: string, providerName: string): Promise<ModelOption[]> {
+  const cleanKey = sanitizeApiKey(apiKey);
+  if (!cleanKey) return [];
+  const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/models`, {
+    headers: {
+      'Authorization': `Bearer ${cleanKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!res.ok) return [];
+  const json = await res.json() as { data?: Array<{ id: string }> };
+  if (!Array.isArray(json.data)) return [];
+  return json.data
+    .filter((m) => m.id && typeof m.id === 'string')
+    .map((m) => genericModelToOption(m.id, providerName));
+}
+
+/**
+ * Busca modelos disponíveis na API Gemini (Google AI Studio / Vertex).
+ */
+async function fetchGeminiModels(baseUrl: string, apiKey: string): Promise<ModelOption[]> {
+  const cleanKey = sanitizeApiKey(apiKey);
+  if (!cleanKey) return [];
+  const nativeBase = geminiApiBase(baseUrl);
+  const res = await fetch(`${nativeBase}/models?key=${encodeURIComponent(cleanKey)}`);
+  if (!res.ok) return [];
+  const json = await res.json() as { models?: Array<{ name: string; displayName?: string; description?: string; inputTokenLimit?: number }> };
+  if (!Array.isArray(json.models)) return [];
+  return json.models
+    .filter((m) => m.name && typeof m.name === 'string')
+    .map((m) => {
+      const id = m.name.replace(/^models\//, '');
+      const tier = inferTier(id, m.displayName ?? id);
+      return {
+        id,
+        label: m.displayName ?? id,
+        provider: 'Google',
+        tier,
+        description: m.description ?? '',
+        contextWindow: m.inputTokenLimit ?? 0,
+        inputCost: 0,
+        outputCost: 0,
+        isFree: false,
+        agentFit: inferFitScores(tier, id, m.displayName),
+      };
+    });
+}
+
+/**
+ * Busca modelos de qualquer provedor suportado.
+ * Retorna uma lista de ModelOption[] com os modelos disponíveis.
+ */
+export async function fetchProviderModels(
+  provider: string,
+  baseUrl: string,
+  apiKey?: string,
+): Promise<ModelOption[]> {
+  try {
+    if (provider === 'openrouter') {
+      return fetchOpenRouterModels(apiKey);
+    }
+
+    if (provider === 'gemini' || provider === 'gemini-vertex' || isGeminiUrl(baseUrl)) {
+      if (!apiKey) return [];
+      const fetched = await fetchGeminiModels(baseUrl, apiKey);
+      if (fetched.length > 0) return fetched;
+    }
+
+    // OpenAI, DeepSeek, Ollama, or any OpenAI-compatible provider
+    if (provider === 'openai' || provider === 'deepseek' || provider === 'ollama' || provider === 'custom') {
+      if (!apiKey && provider !== 'ollama') return [];
+      const providerLabel = provider === 'openai' ? 'OpenAI'
+        : provider === 'deepseek' ? 'DeepSeek'
+        : provider === 'ollama' ? 'Ollama'
+        : 'Custom';
+      const fetched = await fetchOpenAICompatibleModels(baseUrl, apiKey ?? '', providerLabel);
+      if (fetched.length > 0) return fetched;
+    }
+
+    // Anthropic: CORS restrictions prevent browser requests, fall back to preset models
+    if (provider === 'anthropic') {
+      // Cannot fetch from Anthropic API in browser due to CORS.
+      // Return preset models instead.
+    }
+
+    // Fall back to preset model list when available
+    const preset = (AI_PRESETS as Record<string, { models?: Array<{ value: string; label: string }>; label?: string }>)[provider];
+    if (preset?.models) {
+      const providerLabel = preset.label?.split(' ')[0] ?? provider;
+      return preset.models.map((m) => presetModelToOption(m, providerLabel));
+    }
+
+    return [];
+  } catch {
+    // Fall back to preset model list on error
+    const preset = (AI_PRESETS as Record<string, { models?: Array<{ value: string; label: string }>; label?: string }>)[provider];
+    if (preset?.models) {
+      const providerLabel = preset.label?.split(' ')[0] ?? provider;
+      return preset.models.map((m) => presetModelToOption(m, providerLabel));
+    }
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Utilitários de consulta ao catálogo
 // ---------------------------------------------------------------------------
 
@@ -370,6 +520,66 @@ export function useCatalogModels(apiKey?: string): {
 }
 
 /**
+ * Hook React genérico que busca modelos de qualquer provedor suportado.
+ * Para OpenRouter, usa o sistema de catálogo existente.
+ * Para outros provedores, busca via API ou retorna modelos preset.
+ */
+export function useProviderModels(
+  provider: string,
+  baseUrl: string,
+  apiKey?: string,
+): {
+  models: ModelOption[];
+  isLoading: boolean;
+} {
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!provider || !baseUrl) {
+      setModels([]);
+      return;
+    }
+
+    // For OpenRouter, subscribe to catalog updates
+    if (provider === 'openrouter') {
+      const handler = () => setModels([..._catalog]);
+      _listeners.push(handler);
+      if (apiKey) {
+        setIsLoading(true);
+        fetchOpenRouterModels(apiKey).finally(() => {
+          setModels([..._catalog]);
+          setIsLoading(false);
+        });
+      } else {
+        setModels([..._catalog]);
+      }
+      return () => {
+        _listeners = _listeners.filter((fn) => fn !== handler);
+      };
+    }
+
+    // For other providers, fetch models dynamically
+    let cancelled = false;
+    setIsLoading(true);
+    fetchProviderModels(provider, baseUrl, apiKey).then((fetched) => {
+      if (!cancelled) {
+        setModels(fetched);
+        setIsLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setModels([]);
+        setIsLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [provider, baseUrl, apiKey]);
+
+  return { models, isLoading };
+}
+
+/**
  * Remove modelos do catálogo em memória pelo ID e notifica os listeners.
  * Usado após verificação para excluir modelos indisponíveis.
  */
@@ -383,40 +593,71 @@ export function removeModelsFromCatalog(idsToRemove: Set<string>): void {
  * Hook React que retorna o catálogo personalizado do usuário.
  * Combina modelos curados (AVAILABLE_MODELS) + modelos customizados adicionados pelo usuário,
  * excluindo modelos marcados como removidos (indisponíveis).
- * @param apiKey Chave OpenRouter para buscar modelos extras
+ * Suporta todos os provedores — para OpenRouter usa catálogo completo,
+ * para outros provedores busca dinamicamente via API ou preset.
+ * @param provider Chave do provedor (openrouter, openai, gemini, etc.)
+ * @param baseUrl URL base da API do provedor
+ * @param apiKey Chave de API para buscar modelos
  * @param customModelIds IDs de modelos customizados do Firestore do usuário
  * @param removedModelIds IDs de modelos removidos (indisponíveis) do Firestore do usuário
  */
 export function useUserCatalog(
+  provider?: string,
+  baseUrl?: string,
   apiKey?: string,
   customModelIds?: string[],
   removedModelIds?: string[],
 ): {
   /** Modelos curados + customizados do usuário */
   userModels: ModelOption[];
-  /** Catálogo completo (inclui todos os modelos OpenRouter) */
+  /** Catálogo completo (todos os modelos do provedor) */
   allModels: ModelOption[];
   isLoading: boolean;
 } {
-  const { models: allModels, isLoading } = useCatalogModels(apiKey);
+  const effectiveProvider = provider ?? 'openrouter';
+  const effectiveBaseUrl = baseUrl ?? 'https://openrouter.ai/api/v1';
 
-  const [merged, setMerged] = useState<ModelOption[]>(AVAILABLE_MODELS);
+  const { models: providerModels, isLoading } = useProviderModels(effectiveProvider, effectiveBaseUrl, apiKey);
+
+  const [merged, setMerged] = useState<ModelOption[]>(
+    effectiveProvider === 'openrouter' ? AVAILABLE_MODELS : []
+  );
 
   useEffect(() => {
     const removedSet = new Set(removedModelIds ?? []);
-    const filteredCurated = AVAILABLE_MODELS.filter((m) => !removedSet.has(m.id));
 
-    if (!customModelIds || customModelIds.length === 0) {
-      setMerged([...filteredCurated]);
-      return;
+    if (effectiveProvider === 'openrouter') {
+      // For OpenRouter: combine curated models + custom models from full catalog
+      const filteredCurated = AVAILABLE_MODELS.filter((m) => !removedSet.has(m.id));
+      if (!customModelIds || customModelIds.length === 0) {
+        setMerged([...filteredCurated]);
+        return;
+      }
+      const curatedIds = new Set(filteredCurated.map((m) => m.id));
+      const extraModels = customModelIds
+        .filter((id) => !curatedIds.has(id) && !removedSet.has(id))
+        .map((id) => providerModels.find((m) => m.id === id))
+        .filter(Boolean) as ModelOption[];
+      setMerged([...filteredCurated, ...extraModels]);
+    } else {
+      // For other providers: combine fetched/preset models + custom models
+      const baseModels = providerModels.filter((m) => !removedSet.has(m.id));
+      if (!customModelIds || customModelIds.length === 0) {
+        setMerged([...baseModels]);
+        return;
+      }
+      const baseIds = new Set(baseModels.map((m) => m.id));
+      const extraModels = customModelIds
+        .filter((id) => !baseIds.has(id) && !removedSet.has(id))
+        .map((id) => {
+          // Try to find in provider models first, else create a stub
+          const found = providerModels.find((m) => m.id === id);
+          if (found) return found;
+          return genericModelToOption(id, effectiveProvider);
+        });
+      setMerged([...baseModels, ...extraModels]);
     }
-    const curatedIds = new Set(filteredCurated.map((m) => m.id));
-    const extraModels = customModelIds
-      .filter((id) => !curatedIds.has(id) && !removedSet.has(id))
-      .map((id) => allModels.find((m) => m.id === id))
-      .filter(Boolean) as ModelOption[];
-    setMerged([...filteredCurated, ...extraModels]);
-  }, [customModelIds, removedModelIds, allModels]);
+  }, [customModelIds, removedModelIds, providerModels, effectiveProvider]);
 
-  return { userModels: merged, allModels, isLoading };
+  return { userModels: merged, allModels: providerModels, isLoading };
 }

@@ -118,7 +118,7 @@ export default function Generator() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const campaignId = searchParams.get('id');
-  const { user, userProfile, isAdmin } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -159,9 +159,9 @@ export default function Generator() {
     loadSystems();
   }, [user]);
 
-  // Carrega overrides dos agentes do Firestore (só para admin)
+  // Carrega overrides dos agentes do Firestore
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!user) return;
     const loadAgentOverrides = async () => {
       try {
         const map = await AiAgent.loadOverridesMap();
@@ -171,7 +171,7 @@ export default function Generator() {
       }
     };
     loadAgentOverrides();
-  }, [isAdmin]);
+  }, [user]);
 
   // Carrega campanha existente se houver ID
   useEffect(() => {
@@ -261,7 +261,7 @@ export default function Generator() {
     }
   };
 
-  // ─── Auto-fill com IA (admin only) ──────────────────────────────────────────
+  // ─── Auto-fill com IA ─────────────────────────────────────────────────────
   const handleAiFillQuestion = async (questionKey) => {
     const configError = validateAIConfig(userProfile?.aiConfig);
     if (configError) {
@@ -319,7 +319,7 @@ export default function Generator() {
     }
   };
 
-  // ─── Preencher TODAS as respostas com IA (admin only) ──────────────────────
+  // ─── Preencher TODAS as respostas com IA ─────────────────────────────────
   const handleAiFillAll = async () => {
     const configError = validateAIConfig(userProfile?.aiConfig);
     if (configError) {
@@ -878,11 +878,11 @@ export default function Generator() {
         </div>
         <ProgressBar currentStep={currentStep - 1} totalSteps={7} />
 
-        {/* Botão "Preencher Tudo com IA" — admin only */}
-        {isAdmin && (
-          <div className="mb-6 p-4 bg-gradient-to-r from-amber-900/20 to-purple-900/20 border border-amber-500/20 rounded-xl flex items-center justify-between gap-4">
+        {/* Botão "Preencher Tudo com IA" — disponível para todos os usuários */}
+        {userProfile?.aiConfig?.apiKey && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-900/20 to-amber-900/20 border border-purple-500/20 rounded-xl flex items-center justify-between gap-4">
             <div>
-              <p className="text-amber-200 font-semibold text-sm">Modo Admin</p>
+              <p className="text-purple-200 font-semibold text-sm">Preenchimento por IA</p>
               <p className="text-slate-400 text-xs mt-0.5">
                 Preenche automaticamente todas as 7 perguntas do 5W2H com IA e avança para a geração final.
               </p>
@@ -891,7 +891,7 @@ export default function Generator() {
               type="button"
               onClick={handleAiFillAll}
               disabled={aiFillingAll || loading}
-              className="shrink-0 flex items-center gap-2 bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-semibold shadow-lg"
+              className="shrink-0 flex items-center gap-2 bg-gradient-to-r from-purple-600 to-amber-600 hover:from-purple-500 hover:to-amber-500 text-white font-semibold shadow-lg"
             >
               <Zap className="w-4 h-4" />
               Preencher Tudo com IA
@@ -905,7 +905,7 @@ export default function Generator() {
           onChange={(value) => setAnswers({ ...answers, [question.key]: value })}
           onNext={handleAnswerSubmit}
           isLoading={loading}
-          onAiFill={isAdmin ? () => handleAiFillQuestion(question.key) : undefined}
+          onAiFill={userProfile?.aiConfig?.apiKey ? () => handleAiFillQuestion(question.key) : undefined}
           isAiFilling={aiFillingKey === question.key}
         />
       </div>

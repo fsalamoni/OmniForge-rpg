@@ -26,7 +26,7 @@ export const AI_PRESETS = {
     ]
   },
   gemini: {
-    label: 'Google Gemini',
+    label: 'Google AI Studio (Gemini)',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     modelPlaceholder: 'gemini-2.0-flash',
     docsUrl: 'https://aistudio.google.com/app/apikey',
@@ -37,6 +37,48 @@ export const AI_PRESETS = {
       { value: 'gemini-1.5-pro',               label: 'Gemini 1.5 Pro' },
       { value: 'gemini-1.5-flash',             label: 'Gemini 1.5 Flash' }
     ]
+  },
+  'gemini-vertex': {
+    label: 'Google Vertex AI',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    modelPlaceholder: 'gemini-2.0-flash',
+    docsUrl: 'https://console.cloud.google.com/vertex-ai',
+    models: [
+      { value: 'gemini-2.5-pro-preview-03-25', label: 'Gemini 2.5 Pro Preview' },
+      { value: 'gemini-2.0-flash',             label: 'Gemini 2.0 Flash (recomendado)' },
+      { value: 'gemini-2.0-flash-lite',        label: 'Gemini 2.0 Flash Lite' },
+      { value: 'gemini-1.5-pro',               label: 'Gemini 1.5 Pro' },
+      { value: 'gemini-1.5-flash',             label: 'Gemini 1.5 Flash' }
+    ]
+  },
+  deepseek: {
+    label: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1',
+    modelPlaceholder: 'deepseek-chat',
+    docsUrl: 'https://platform.deepseek.com/api_keys',
+    models: [
+      { value: 'deepseek-chat',     label: 'DeepSeek Chat (V3 — recomendado)' },
+      { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner (R1 — raciocínio)' }
+    ]
+  },
+  anthropic: {
+    label: 'Anthropic (Claude)',
+    baseUrl: 'https://api.anthropic.com/v1',
+    modelPlaceholder: 'claude-sonnet-4-20250514',
+    docsUrl: 'https://console.anthropic.com/settings/keys',
+    models: [
+      { value: 'claude-sonnet-4-20250514',     label: 'Claude Sonnet 4 (recomendado)' },
+      { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+      { value: 'claude-3-5-haiku-20241022',  label: 'Claude 3.5 Haiku (rápido)' },
+      { value: 'claude-3-opus-20240229',     label: 'Claude 3 Opus (premium)' }
+    ]
+  },
+  ollama: {
+    label: 'Ollama (local)',
+    baseUrl: 'http://localhost:11434/v1',
+    modelPlaceholder: 'llama3',
+    docsUrl: 'https://ollama.com/library',
+    models: null // fetched dynamically from local server
   },
   custom: {
     label: 'Custom (URL própria)',

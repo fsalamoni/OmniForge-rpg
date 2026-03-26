@@ -1,8 +1,8 @@
 /**
- * OmniForge RPG — OpenRouter Browser Modal
+ * OmniForge RPG — Model Browser Modal
  *
- * Modal para navegar TODOS os modelos disponíveis no OpenRouter e
- * adicionar modelos ao catálogo pessoal do usuário.
+ * Modal para navegar TODOS os modelos disponíveis no provedor selecionado
+ * e adicionar modelos ao catálogo pessoal do usuário.
  *
  * Segue o padrão de design OmniForge (slate-900 + purple accents).
  */
@@ -155,10 +155,11 @@ function BrowserRow({ model, isAdded, onAdd }) {
  * @param {Object} props
  * @param {boolean} props.open
  * @param {function} props.onOpenChange
- * @param {Array} props.allModels — todos os modelos do OpenRouter (catálogo completo)
+ * @param {Array} props.allModels — todos os modelos do provedor (catálogo completo)
  * @param {Array} props.userModelIds — IDs dos modelos já no catálogo do usuário
  * @param {function} props.onAddModel — callback (model) => void ao adicionar modelo
  * @param {boolean} props.isLoading
+ * @param {string} [props.providerName] — nome do provedor para exibição (ex: "OpenRouter", "OpenAI")
  */
 export default function OpenRouterBrowserModal({
   open,
@@ -167,6 +168,7 @@ export default function OpenRouterBrowserModal({
   userModelIds = [],
   onAddModel,
   isLoading = false,
+  providerName = 'OpenRouter',
 }) {
   const [search, setSearch] = useState('');
   const [pricingFilter, setPricingFilter] = useState('all');
@@ -305,22 +307,24 @@ export default function OpenRouterBrowserModal({
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-800 shrink-0">
           <DialogTitle className="text-xl text-white font-bold flex items-center gap-2">
             <Globe className="w-5 h-5 text-purple-400" />
-            Adicionar Modelos ao Catálogo
+            Adicionar Modelo
           </DialogTitle>
           <DialogDescription className="text-slate-400 text-sm flex items-center gap-3 flex-wrap">
             {isLoading
-              ? <span className="text-purple-400">Carregando modelos do OpenRouter...</span>
-              : <span>{filteredModels.length} de {allModels.length} modelos do OpenRouter</span>
+              ? <span className="text-purple-400">Carregando modelos de {providerName}...</span>
+              : <span>{filteredModels.length} de {allModels.length} modelos de {providerName}</span>
             }
-            <a
-              href="https://openrouter.ai/models"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 text-xs ml-auto"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              Ver no OpenRouter
-            </a>
+            {providerName === 'OpenRouter' && (
+              <a
+                href="https://openrouter.ai/models"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 text-xs ml-auto"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Ver no OpenRouter
+              </a>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -471,7 +475,7 @@ export default function OpenRouterBrowserModal({
                 <Globe className="w-10 h-10 mx-auto mb-3 text-slate-600" />
                 <p className="text-sm">
                   {isLoading
-                    ? 'Carregando modelos do OpenRouter...'
+                    ? `Carregando modelos de ${providerName}...`
                     : 'Nenhum modelo encontrado com os filtros atuais.'}
                 </p>
                 {!isLoading && (
@@ -501,7 +505,7 @@ export default function OpenRouterBrowserModal({
         <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between shrink-0">
           <p className="text-[10px] text-slate-600 max-w-[70%]">
             Após adicionar, salve o catálogo. Os modelos adicionados ficam disponíveis em todos os seletores de agentes.
-            Preços em USD/1M tokens (OpenRouter).
+            {providerName === 'OpenRouter' && ' Preços em USD/1M tokens (OpenRouter).'}
           </p>
           <Button
             type="button"

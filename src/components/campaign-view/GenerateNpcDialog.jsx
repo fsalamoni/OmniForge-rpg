@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Sparkles } from 'lucide-react';
 
 export default function GenerateNpcDialog({ campaignId, systemRpg, setting, onNpcCreated }) {
-  const { userProfile, isAdmin } = useAuth();
+  const { userProfile } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [npcType, setNpcType] = useState('NPC');
