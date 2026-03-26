@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, Loader2, Sparkles } from 'lucide-react';
 import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
+import { AGENT_IDS } from '@/lib/aiAgents';
 import { NpcCreature } from '@/firebase/db';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -59,7 +60,9 @@ Extraia apenas nomes PRÓPRIOS de personagens. Não inclua tipos genéricos como
           },
           required: ['locations']
         },
-        userAIConfig: userProfile.aiConfig
+        userAIConfig: userProfile.aiConfig,
+        agentKey: AGENT_IDS.NPC_EXTRACTOR,
+        agentModels: userProfile?.agentModels || {}
       });
 
       setNpcNames(result?.locations || []);
@@ -108,7 +111,9 @@ Gere um perfil completo com aparência, personalidade, motivações e papel na c
             },
             required: ['name', 'role', 'type', 'description', 'motivation']
           },
-          userAIConfig: userProfile.aiConfig
+          userAIConfig: userProfile.aiConfig,
+          agentKey: AGENT_IDS.NPC_GENERATOR,
+          agentModels: userProfile?.agentModels || {}
         });
 
         const npc = await NpcCreature.create({

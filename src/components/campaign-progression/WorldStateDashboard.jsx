@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Campaign, NpcCreature, SessionLog } from '@/firebase/db';
 import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
+import { AGENT_IDS } from '@/lib/aiAgents';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function WorldStateDashboard({ campaignId, isOwner }) {
@@ -162,7 +163,9 @@ Responda em JSON com exatamente esta estrutura:
             arc_impact: { type: 'string' }
           },
           required: ['event_title', 'event_description', 'trigger', 'immediate_consequences', 'arc_impact']
-        }
+        },
+        agentKey: AGENT_IDS.CONSEQUENCE_GENERATOR,
+        agentModels: userProfile?.agentModels || {}
       });
 
       if (!result || !result.event_title) {

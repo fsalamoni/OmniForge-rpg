@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, ChevronUp } from 'lucide-react';
 import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
+import { AGENT_IDS } from '@/lib/aiAgents';
 import { useAuth } from '@/lib/AuthContext';
 
 /**
@@ -42,7 +43,9 @@ export default function AIExpander({
     try {
       const result = await invokeLLM({
         prompt: getPrompt(),
-        userAIConfig: userProfile.aiConfig
+        userAIConfig: userProfile.aiConfig,
+        agentKey: AGENT_IDS.AI_EXPANDER,
+        agentModels: userProfile?.agentModels || {}
       });
       setExpandedContent(result);
       setExpanded(true);

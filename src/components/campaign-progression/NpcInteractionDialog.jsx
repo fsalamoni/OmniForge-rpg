@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, MessageCircle, Sparkles } from 'lucide-react';
 import { Campaign, SessionLog, NpcCreature } from '@/firebase/db';
 import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
+import { AGENT_IDS } from '@/lib/aiAgents';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function NpcInteractionDialog({ open, onOpenChange, npc, campaignId }) {
@@ -132,7 +133,9 @@ RESPONDA COMO ${npc.name} REAGIRIA REALISTICAMENTE.`;
             response: { type: 'string', description: 'Resposta do NPC em primeira pessoa' }
           },
           required: ['response']
-        }
+        },
+        agentKey: AGENT_IDS.NPC_INTERACTION,
+        agentModels: userProfile?.agentModels || {}
       });
 
       const npcResponse = { role: 'npc', content: result.response || String(result) };

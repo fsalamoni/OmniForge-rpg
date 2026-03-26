@@ -65,7 +65,9 @@ export default function GenerateNpcDialog({ campaignId, systemRpg, setting, onNp
         },
         userAIConfig: userProfile.aiConfig,
         systemPrompt: config.systemPrompt,
-        temperature: config.temperature
+        temperature: config.temperature,
+        agentKey: AGENT_IDS.NPC_GENERATOR,
+        agentModels: userProfile?.agentModels || {}
       });
 
       const newNpc = await NpcCreature.create({
