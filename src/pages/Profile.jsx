@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile } from '@/firebase/db';
-import { AI_PRESETS, isGeminiUrl, geminiApiBase } from '@/lib/aiClient';
+import { AI_PRESETS, isGeminiUrl, geminiApiBase, isOpenRouterUrl } from '@/lib/aiClient';
 import { useUserCatalog, verifyModelAvailability, removeModelsFromCatalog } from '@/lib/model-catalog';
 import { AVAILABLE_MODELS, PIPELINE_AGENT_DEFS, loadAgentModels, saveAgentModels, getDefaultModelMap } from '@/lib/model-config';
 import { useMutation } from '@tanstack/react-query';
@@ -200,8 +200,23 @@ export default function Profile() {
           const err = await res.json().catch(() => ({}));
           throw new Error(err?.error?.message || `Erro ${res.status}: ${res.statusText}`);
         }
+      } else if (isOpenRouterUrl(aiConfig.baseUrl)) {
+        // OpenRouter: use /auth/key endpoint which actually requires authentication.
+        // GET /v1/models is a public endpoint that always returns 200 even for invalid keys,
+        // so it cannot be used to validate the key.
+        const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'OmniForge RPG',
+          },
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.error?.message || `Chave inválida: ${res.status} ${res.statusText}`);
+        }
       } else {
-        // OpenRouter / OpenAI-compatible: validate via GET /models (no model required)
+        // OpenAI-compatible: validate via GET /models (requires auth for OpenAI and most providers)
         const res = await fetch(`${aiConfig.baseUrl}/models`, {
           headers: {
             Authorization: `Bearer ${key}`,

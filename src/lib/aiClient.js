@@ -52,6 +52,11 @@ export function isGeminiUrl(baseUrl) {
   return typeof baseUrl === 'string' && baseUrl.includes('generativelanguage.googleapis.com');
 }
 
+/** Returns true when the baseUrl points to OpenRouter's API */
+export function isOpenRouterUrl(baseUrl) {
+  return typeof baseUrl === 'string' && baseUrl.includes('openrouter.ai');
+}
+
 /**
  * Validates the AI configuration object.
  * Returns null if valid, or an error message string if invalid.
@@ -83,6 +88,11 @@ export function geminiApiBase(baseUrl) {
   return baseUrl.replace(/\/openai\/?$/, '').replace(/\/$/, '');
 }
 
+/** Trim a baseUrl and remove any trailing slashes to avoid double-slash paths in fetch URLs */
+export function normalizeBaseUrl(baseUrl) {
+  return (typeof baseUrl === 'string') ? baseUrl.trim().replace(/\/+$/, '') : '';
+}
+
 /**
  * @param {object} params
  * @param {string} params.prompt                  - The user prompt to send
@@ -97,7 +107,8 @@ export function geminiApiBase(baseUrl) {
 export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPrompt, temperature, agentKey, agentModels }) {
   const { apiKey: _apiKey, baseUrl: _baseUrl, model: configModel } = userAIConfig || {};
   const apiKey = (typeof _apiKey === 'string') ? _apiKey.trim() : '';
-  const baseUrl = (typeof _baseUrl === 'string') ? _baseUrl.trim() : '';
+  // Normalize baseUrl: trim and remove trailing slashes to avoid double-slash URLs that may cause redirects
+  const baseUrl = normalizeBaseUrl(_baseUrl);
 
   // Resolve model: per-agent override > config model
   const model = (agentKey && agentModels?.[agentKey]) || configModel;
@@ -238,7 +249,7 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
  * @returns {Promise<{content: string, model: string, tokens_in: number, tokens_out: number, cost_usd: number, duration_ms: number}>}
  */
 export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4000, temperature = 0.3, agentKey, agentModels }) {
-  const { apiKey: _apiKey, baseUrl, model: configModel } = userAIConfig || {};
+  const { apiKey: _apiKey, baseUrl: _baseUrl, model: configModel } = userAIConfig || {};
   const apiKey = (typeof _apiKey === 'string') ? _apiKey.trim() : '';
 
   if (!apiKey) {
@@ -248,7 +259,8 @@ export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4
   }
 
   const resolvedModel = (agentKey && agentModels?.[agentKey]) || model || configModel;
-  const resolvedBaseUrl = baseUrl || 'https://openrouter.ai/api/v1';
+  // Normalize baseUrl: trim and remove trailing slashes to avoid double-slash URLs that may cause redirects
+  const resolvedBaseUrl = normalizeBaseUrl(_baseUrl) || 'https://openrouter.ai/api/v1';
 
   if (!resolvedModel) {
     throw new Error('Nenhum modelo especificado. Configure o modelo no perfil ou passe o parâmetro model.');
