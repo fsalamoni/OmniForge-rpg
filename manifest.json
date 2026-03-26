@@ -2,13 +2,13 @@
   "name": "OmniForge RPG",
   "short_name": "OmniForge",
   "description": "Gerador de campanhas de RPG com Inteligência Artificial",
-  "start_url": "/OmniForge-rpg/",
+  "start_url": "/omniforge/",
   "display": "standalone",
   "background_color": "#0f0f1a",
   "theme_color": "#7c3aed",
   "icons": [
     {
-      "src": "/OmniForge-rpg/favicon.svg",
+      "src": "/omniforge/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
