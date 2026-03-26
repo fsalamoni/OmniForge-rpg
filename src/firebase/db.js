@@ -62,6 +62,11 @@ export const UserProfile = {
   /** Persiste o mapa de modelos por agente do usuário. */
   async updateAgentModels(uid, agentModels) {
     await updateDoc(doc(db, 'users', uid), { agentModels, updatedAt: now() });
+  },
+
+  /** Persiste a lista de IDs de modelos removidos (indisponíveis) do catálogo. */
+  async updateRemovedModels(uid, removedModelIds) {
+    await updateDoc(doc(db, 'users', uid), { removedModelIds, updatedAt: now() });
   }
 };
 
