@@ -224,7 +224,7 @@ export default function Profile() {
   // Handle adding a model from the OpenRouter browser to the user's catalog
   const handleAddModelFromBrowser = async (model) => {
     const curatedIds = new Set(AVAILABLE_MODELS.map((m) => m.id));
-    const isRemovedCurated = curatedIds.has(model.id) && removedModelIds.includes(model.id);
+    const isRemovedCurated = curatedIds.has(model.id) && new Set(removedModelIds).has(model.id);
 
     // If it's a curated model that was previously removed, un-remove it
     if (isRemovedCurated) {
@@ -301,9 +301,8 @@ export default function Profile() {
         }
 
         // 3) Remove unavailable custom model IDs
-        const unavailableCustomIds = customModelIds.filter((id) => !results.availableIds.has(id));
-        if (unavailableCustomIds.length > 0) {
-          const cleanedCustomIds = customModelIds.filter((id) => results.availableIds.has(id));
+        const cleanedCustomIds = customModelIds.filter((id) => results.availableIds.has(id));
+        if (cleanedCustomIds.length < customModelIds.length) {
           setCustomModelIds(cleanedCustomIds);
           try {
             await UserProfile.updateModelCatalog(user.uid, cleanedCustomIds);
@@ -711,8 +710,8 @@ export default function Profile() {
                   (verifyResults.unavailableCatalogIds.length > 0 ||
                    Object.keys(verifyResults.unavailableAgentModels).length > 0 ||
                    !verifyResults.defaultModelAvailable) && (
-                    <div className="p-4 bg-green-900/20 border border-green-500/20 rounded-lg space-y-2">
-                      <p className="text-green-300 text-sm font-medium flex items-center gap-1.5">
+                    <div className="p-4 bg-blue-900/20 border border-blue-500/20 rounded-lg space-y-2">
+                      <p className="text-blue-300 text-sm font-medium flex items-center gap-1.5">
                         <Trash2 className="w-4 h-4" />
                         Modelos indisponíveis excluídos do catálogo
                       </p>
