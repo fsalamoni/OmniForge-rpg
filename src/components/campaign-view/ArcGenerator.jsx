@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Sparkles, Loader2, CheckCircle2, Circle } from 'lucide-react';
 import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
+import { AGENT_IDS } from '@/lib/aiAgents';
 import { useAuth } from '@/lib/AuthContext';
 
 const MISSION_TYPES = [
@@ -146,7 +147,7 @@ const GENERATION_STEPS = [
   { id: 'scenes', label: 'Cenas detalhadas' }
 ];
 
-async function generateArcOverview({ arcName, missionType, numActs, scenesPerAct, systemRpg, setting, customInstructions, contextBlock, userAIConfig }) {
+async function generateArcOverview({ arcName, missionType, numActs, scenesPerAct, systemRpg, setting, customInstructions, contextBlock, userAIConfig, agentModels }) {
   const prompt = `Você é um mestre de RPG de nível mundial criando um arco narrativo épico e memorável.
 
 TAREFA: Criar a VISÃO GERAL de um arco narrativo para RPG de mesa.
@@ -202,13 +203,15 @@ Retorne um JSON com a seguinte estrutura:
     },
     userAIConfig,
     systemPrompt: 'Você é um mestre de RPG renomado, especialista em narrativa épica e design de aventuras. Crie conteúdo rico, detalhado e imersivo. Responda SEMPRE em JSON válido.',
-    temperature: 0.85
+    temperature: 0.85,
+    agentKey: AGENT_IDS.ARC_GENERATOR,
+    agentModels
   });
 
   return unwrapResult(raw, arcName) || { name: arcName, description: '' };
 }
 
-async function generateActsStructure({ arcOverview, numActs, scenesPerAct, missionType, systemRpg, setting, contextBlock, userAIConfig }) {
+async function generateActsStructure({ arcOverview, numActs, scenesPerAct, missionType, systemRpg, setting, contextBlock, userAIConfig, agentModels }) {
   const actFunctionGuide = numActs <= 2
     ? 'Use "setup" para o primeiro ato e "climax" para o último.'
     : numActs === 3
@@ -285,7 +288,9 @@ Retorne um JSON com a seguinte estrutura:
     },
     userAIConfig,
     systemPrompt: 'Você é um mestre de RPG renomado, especialista em estrutura narrativa e design de aventuras. Crie atos com progressão dramática perfeita. Responda SEMPRE em JSON válido.',
-    temperature: 0.8
+    temperature: 0.8,
+    agentKey: AGENT_IDS.ARC_GENERATOR,
+    agentModels
   });
 
   let acts = unwrapArray(raw?.acts || raw);
@@ -293,7 +298,7 @@ Retorne um JSON com a seguinte estrutura:
   return acts;
 }
 
-async function generateScenesForAct({ actData, actIndex, numActs, scenesPerAct, arcOverview, previousActsSummary, systemRpg, setting, contextBlock, userAIConfig }) {
+async function generateScenesForAct({ actData, actIndex, numActs, scenesPerAct, arcOverview, previousActsSummary, systemRpg, setting, contextBlock, userAIConfig, agentModels }) {
   const prompt = `Você é um mestre de RPG de nível mundial criando cenas detalhadas e imersivas para uma sessão de RPG de mesa.
 
 ARCO: "${arcOverview.name}"
@@ -403,7 +408,9 @@ Retorne um JSON com a seguinte estrutura:
     },
     userAIConfig,
     systemPrompt: 'Você é um mestre de RPG lendário, famoso por criar as cenas mais imersivas, detalhadas e memoráveis de todos os tempos. Seus textos de read_aloud são obras-primas literárias que transportam os jogadores para dentro da cena. Responda SEMPRE em JSON válido.',
-    temperature: 0.9
+    temperature: 0.9,
+    agentKey: AGENT_IDS.ARC_GENERATOR,
+    agentModels
   });
 
   let scenes = unwrapArray(raw?.scenes || raw);
@@ -442,11 +449,12 @@ export default function ArcGenerator({ campaignId, description, answers5W2H, hoo
     try {
       const contextBlock = buildContextBlock({ description, hooks, answers5W2H, npcs, existingArcs });
       const userAIConfig = userProfile.aiConfig;
+      const agentModels = userProfile?.agentModels || {};
 
       // ── STEP 1: Arc Overview ──
       const arcOverview = await generateArcOverview({
         arcName, missionType, numActs, scenesPerAct,
-        systemRpg, setting, customInstructions, contextBlock, userAIConfig
+        systemRpg, setting, customInstructions, contextBlock, userAIConfig, agentModels
       });
 
       if (!arcOverview?.name) throw new Error('Falha ao gerar a visão geral do arco. Tente novamente.');
@@ -457,7 +465,7 @@ export default function ArcGenerator({ campaignId, description, answers5W2H, hoo
 
       let acts = await generateActsStructure({
         arcOverview, numActs, scenesPerAct, missionType,
-        systemRpg, setting, contextBlock, userAIConfig
+        systemRpg, setting, contextBlock, userAIConfig, agentModels
       });
 
       if (!acts || acts.length === 0) throw new Error('Falha ao gerar a estrutura dos atos. Tente novamente.');
@@ -480,7 +488,7 @@ export default function ArcGenerator({ campaignId, description, answers5W2H, hoo
 
         const scenes = await generateScenesForAct({
           actData: acts[i], actIndex: i, numActs: acts.length, scenesPerAct,
-          arcOverview, previousActsSummary, systemRpg, setting, contextBlock, userAIConfig
+          arcOverview, previousActsSummary, systemRpg, setting, contextBlock, userAIConfig, agentModels
         });
 
         acts[i].scenes = scenes.length > 0 ? scenes : acts[i].scenes;

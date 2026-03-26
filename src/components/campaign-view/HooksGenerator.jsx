@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Anchor, Sparkles, Loader2, X } from 'lucide-react';
 import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
+import { AGENT_IDS } from '@/lib/aiAgents';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function HooksGenerator({ campaignId, description, answers5W2H, systemRpg, setting, onHooksGenerated }) {
@@ -63,7 +64,9 @@ Responda em JSON com exatamente ${quantity} hooks.`;
           required: ['hooks']
         },
         userAIConfig: userProfile.aiConfig,
-        systemPrompt: 'Você é um assistente especialista em RPG. Responda SEMPRE em JSON válido.'
+        systemPrompt: 'Você é um assistente especialista em RPG. Responda SEMPRE em JSON válido.',
+        agentKey: AGENT_IDS.HOOKS_GENERATOR,
+        agentModels: userProfile?.agentModels || {}
       });
 
       const hooks = (result?.hooks || []).map(h => typeof h === 'string' ? h : (h.hook || String(h)));

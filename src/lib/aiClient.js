@@ -237,7 +237,7 @@ export async function invokeLLM({ prompt, responseSchema, userAIConfig, systemPr
  * @param {number} [params.temperature]       - Temperatura (padrão: 0.3)
  * @returns {Promise<{content: string, model: string, tokens_in: number, tokens_out: number, cost_usd: number, duration_ms: number}>}
  */
-export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4000, temperature = 0.3 }) {
+export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4000, temperature = 0.3, agentKey, agentModels }) {
   const { apiKey: _apiKey, baseUrl, model: configModel } = userAIConfig || {};
   const apiKey = (typeof _apiKey === 'string') ? _apiKey.trim() : '';
 
@@ -247,7 +247,7 @@ export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4
     );
   }
 
-  const resolvedModel = model || configModel;
+  const resolvedModel = (agentKey && agentModels?.[agentKey]) || model || configModel;
   const resolvedBaseUrl = baseUrl || 'https://openrouter.ai/api/v1';
 
   if (!resolvedModel) {
@@ -256,6 +256,55 @@ export async function callLLM({ system, user, userAIConfig, model, maxTokens = 4
 
   const startTime = Date.now();
 
+  // ── Native Gemini API ───────────────────────────────────────────────────────
+  if (isGeminiUrl(resolvedBaseUrl)) {
+    const apiBase = geminiApiBase(resolvedBaseUrl);
+    const url = `${apiBase}/models/${resolvedModel}:generateContent?key=${apiKey}`;
+
+    const geminiBody = {
+      contents: [{ role: 'user', parts: [{ text: user }] }],
+      systemInstruction: { parts: [{ text: system }] },
+      generationConfig: {
+        temperature,
+        maxOutputTokens: maxTokens
+      }
+    };
+
+    const geminiResponse = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiBody)
+    });
+
+    const duration_ms = Date.now() - startTime;
+
+    if (!geminiResponse.ok) {
+      const err = await geminiResponse.json().catch(() => ({}));
+      const errorMessage = err?.error?.message || `Erro na API Gemini: ${geminiResponse.status} ${geminiResponse.statusText}`;
+      if (geminiResponse.status === 401 || geminiResponse.status === 403 || /auth|unauthorized|forbidden|api.key/i.test(errorMessage)) {
+        throw new Error(
+          `Erro de autenticação com a API Gemini: ${errorMessage}\n\nVerifique se sua chave de API está correta em Perfil → Configuração de IA.`
+        );
+      }
+      throw new Error(errorMessage);
+    }
+
+    const geminiData = await geminiResponse.json();
+    const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!content) throw new Error('Resposta vazia da API Gemini');
+
+    return {
+      content,
+      model: resolvedModel,
+      tokens_in: geminiData.usageMetadata?.promptTokenCount ?? 0,
+      tokens_out: geminiData.usageMetadata?.candidatesTokenCount ?? 0,
+      cost_usd: getModelCost(resolvedModel, geminiData.usageMetadata?.promptTokenCount ?? 0, geminiData.usageMetadata?.candidatesTokenCount ?? 0),
+      duration_ms
+    };
+  }
+
+  // ── OpenAI-compatible API ───────────────────────────────────────────────────
   const body = {
     model: resolvedModel,
     messages: [

@@ -83,7 +83,9 @@ export default function SceneEncounterDialog({ open, onOpenChange, campaign, onE
         },
         userAIConfig: userProfile.aiConfig,
         systemPrompt: config.systemPrompt,
-        temperature: config.temperature
+        temperature: config.temperature,
+        agentKey: AGENT_IDS.ENCOUNTER_GENERATOR,
+        agentModels: userProfile?.agentModels || {}
       });
 
       const encounter = {

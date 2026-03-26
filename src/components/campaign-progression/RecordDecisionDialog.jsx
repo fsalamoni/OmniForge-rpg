@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Sparkles, TrendingUp, TrendingDown, Minus, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Campaign, NpcCreature, SessionLog } from '@/firebase/db';
 import { invokeLLM, validateAIConfig } from '@/lib/aiClient';
+import { AGENT_IDS } from '@/lib/aiAgents';
 import { useAuth } from '@/lib/AuthContext';
 
 // Step: 'form' | 'reviewing' | 'saving'
@@ -140,7 +141,9 @@ Seja específico, dramático e crie conexões causais fortes.`;
               new_events: { type: 'array', items: { type: 'string' } }
             },
             required: ['immediate', 'long_term', 'stakeholder_changes', 'wbs_impact', 'new_events']
-          }
+          },
+          agentKey: AGENT_IDS.CONSEQUENCE_GENERATOR,
+          agentModels: userProfile?.agentModels || {}
         });
         setAiResult(result);
         setStep('reviewing');

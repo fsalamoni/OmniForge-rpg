@@ -72,7 +72,9 @@ export default function GenerateEncounterDialog({ campaignId, campaign, onEncoun
         },
         userAIConfig: userProfile.aiConfig,
         systemPrompt: config.systemPrompt,
-        temperature: config.temperature
+        temperature: config.temperature,
+        agentKey: AGENT_IDS.ENCOUNTER_GENERATOR,
+        agentModels: userProfile?.agentModels || {}
       });
 
       // Adiciona o novo encontro ao content_json da campanha
