@@ -79,9 +79,11 @@ export default function Profile() {
   // Per-agent model map
   const [agentModels, setAgentModels] = useState(() => getDefaultModelMap());
 
-  // Use the enhanced catalog hook — returns user's models + all OpenRouter models
+  // Use the enhanced catalog hook — returns user's models + all provider models
   const { userModels, allModels, isLoading: catalogLoading } = useUserCatalog(
-    aiProvider === 'openrouter' ? aiConfig.apiKey : undefined,
+    aiProvider,
+    aiConfig.baseUrl,
+    aiConfig.apiKey || undefined,
     customModelIds,
     removedModelIds
   );
@@ -251,7 +253,7 @@ export default function Profile() {
     }
   };
 
-  // Handle adding a model from the OpenRouter browser to the user's catalog
+  // Handle adding a model from the provider browser to the user's catalog
   const handleAddModelFromBrowser = async (model) => {
     const curatedIds = new Set(AVAILABLE_MODELS.map((m) => m.id));
     const isRemovedCurated = curatedIds.has(model.id) && new Set(removedModelIds).has(model.id);
@@ -378,7 +380,6 @@ export default function Profile() {
   };
 
   const currentPreset = AI_PRESETS[aiProvider];
-  const hasModelList = Array.isArray(currentPreset?.models);
 
   const maskedKey = aiConfig.apiKey
     ? `${'•'.repeat(Math.max(0, aiConfig.apiKey.length - 4))}${aiConfig.apiKey.slice(-4)}`
@@ -567,106 +568,70 @@ export default function Profile() {
               )}
             </div>
 
-            {/* Model — dropdown when preset has model list, catalog combobox for openrouter, text input for custom */}
+            {/* Model — catalog with browser for all providers */}
             <div>
               <Label className="text-white mb-2 block">Modelo Padrão</Label>
-              {hasModelList ? (
-                <Select
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCatalogOpen(true)}
+                  className="flex flex-1 items-center justify-between rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  <span className={aiConfig.model ? 'text-white' : 'text-slate-500'}>
+                    {aiConfig.model
+                      ? (userModels.find((m) => m.id === aiConfig.model)?.label ?? aiConfig.model)
+                      : 'Clique para abrir o catálogo de modelos...'}
+                  </span>
+                  <BookOpen className="ml-2 h-4 w-4 shrink-0 text-purple-400" />
+                </button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBrowserOpen(true)}
+                  className="border-purple-600/50 text-purple-300 hover:text-white hover:bg-purple-800/30 shrink-0"
+                  title={`Adicionar modelos de ${currentPreset?.label || aiProvider} ao catálogo`}
+                >
+                  <Download className="w-4 h-4 mr-1.5" />
+                  Adicionar Modelo
+                </Button>
+              </div>
+              <ModelCatalogModal
+                open={catalogOpen}
+                onOpenChange={setCatalogOpen}
+                models={userModels}
+                selectedModelId={aiConfig.model}
+                onSelect={(model) => {
+                  setAiConfig({ ...aiConfig, model: model.id });
+                  setTestStatus(null);
+                }}
+              />
+              <OpenRouterBrowserModal
+                open={browserOpen}
+                onOpenChange={setBrowserOpen}
+                allModels={allModels}
+                userModelIds={userModelIds}
+                onAddModel={handleAddModelFromBrowser}
+                isLoading={catalogLoading}
+                providerName={currentPreset?.label?.split('(')[0]?.trim() || aiProvider}
+              />
+              <div className="mt-2">
+                <Input
                   value={aiConfig.model}
-                  onValueChange={(val) => {
-                    setAiConfig({ ...aiConfig, model: val });
+                  onChange={(e) => {
+                    setAiConfig({ ...aiConfig, model: e.target.value });
                     setTestStatus(null);
                   }}
-                >
-                  <SelectTrigger className="bg-slate-950/50 border-slate-700 text-white">
-                    <SelectValue placeholder="Selecione um modelo..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currentPreset.models.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : aiProvider === 'openrouter' ? (
-                <>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCatalogOpen(true)}
-                      className="flex flex-1 items-center justify-between rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    >
-                      <span className={aiConfig.model ? 'text-white' : 'text-slate-500'}>
-                        {aiConfig.model
-                          ? (userModels.find((m) => m.id === aiConfig.model)?.label ?? aiConfig.model)
-                          : 'Clique para abrir o catálogo de modelos...'}
-                      </span>
-                      <BookOpen className="ml-2 h-4 w-4 shrink-0 text-purple-400" />
-                    </button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setBrowserOpen(true)}
-                      className="border-purple-600/50 text-purple-300 hover:text-white hover:bg-purple-800/30 shrink-0"
-                      title="Adicionar modelos do OpenRouter ao catálogo"
-                    >
-                      <Download className="w-4 h-4 mr-1.5" />
-                      Adicionar do OpenRouter
-                    </Button>
-                  </div>
-                  <ModelCatalogModal
-                    open={catalogOpen}
-                    onOpenChange={setCatalogOpen}
-                    models={userModels}
-                    selectedModelId={aiConfig.model}
-                    onSelect={(model) => {
-                      setAiConfig({ ...aiConfig, model: model.id });
-                      setTestStatus(null);
-                    }}
-                  />
-                  <OpenRouterBrowserModal
-                    open={browserOpen}
-                    onOpenChange={setBrowserOpen}
-                    allModels={allModels}
-                    userModelIds={userModelIds}
-                    onAddModel={handleAddModelFromBrowser}
-                    isLoading={catalogLoading}
-                  />
-                  <div className="mt-2">
-                    <Input
-                      value={aiConfig.model}
-                      onChange={(e) => {
-                        setAiConfig({ ...aiConfig, model: e.target.value });
-                        setTestStatus(null);
-                      }}
-                      placeholder="Ou digite o ID do modelo manualmente (ex: openai/gpt-4o)"
-                      className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {userModels.length} modelos no seu catálogo
-                    {customModelIds.length > 0 && (
-                      <span className="text-purple-400"> ({customModelIds.length} personalizado{customModelIds.length !== 1 ? 's' : ''})</span>
-                    )}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Input
-                    value={aiConfig.model}
-                    onChange={(e) => {
-                      setAiConfig({ ...aiConfig, model: e.target.value });
-                      setTestStatus(null);
-                    }}
-                    placeholder={currentPreset?.modelPlaceholder || 'model-name'}
-                    required
-                    className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    {aiProvider === 'custom' && 'Nome do modelo conforme aceito pela sua API'}
-                  </p>
-                </>
-              )}
+                  placeholder={`Ou digite o ID do modelo manualmente (ex: ${currentPreset?.modelPlaceholder || 'model-name'})`}
+                  className="bg-slate-950/50 border-slate-700 text-white font-mono text-sm"
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {userModels.length} modelos no seu catálogo
+                {customModelIds.length > 0 && (
+                  <span className="text-purple-400"> ({customModelIds.length} personalizado{customModelIds.length !== 1 ? 's' : ''})</span>
+                )}
+              </p>
             </div>
 
             {/* Test key button + result */}
@@ -820,16 +785,14 @@ export default function Profile() {
       </Card>
 
       {/* Per-Agent Model Configuration */}
-      {aiProvider === 'openrouter' && (
-        <AgentModelConfig
-          agentModels={agentModels}
-          onAgentModelsChange={setAgentModels}
-          catalogModels={userModels}
-          isSaving={updateAgentModelsMutation.isPending}
-          onSave={handleSaveAgentModels}
-          onReset={handleResetAgentModels}
-        />
-      )}
+      <AgentModelConfig
+        agentModels={agentModels}
+        onAgentModelsChange={setAgentModels}
+        catalogModels={userModels}
+        isSaving={updateAgentModelsMutation.isPending}
+        onSave={handleSaveAgentModels}
+        onReset={handleResetAgentModels}
+      />
     </div>
   );
 }
