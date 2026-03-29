@@ -458,8 +458,8 @@ export default function ApiKeyTutorialModal({ open, onOpenChange }) {
   }, [open]);
 
   const handleClose = useCallback(() => {
-    // Always dismiss on close — the user has seen it.
-    // Only exception: they can explicitly uncheck "don't show again" to keep seeing it.
+    // Dismiss persists to localStorage only when the user explicitly checks "don't show again".
+    // The Layout component handles auto-dismiss separately for auto-triggered tutorials.
     if (dontShowAgain) {
       dismissTutorial();
     }
@@ -486,9 +486,7 @@ export default function ApiKeyTutorialModal({ open, onOpenChange }) {
 
   const handleNext = () => {
     if (selectedProvider) {
-      // From provider guide, go to register page
-      setSelectedProvider(null);
-      setPage(2);
+      handleProviderToRegister();
       return;
     }
     if (page < totalPages - 1) {
