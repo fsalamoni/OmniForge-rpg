@@ -497,8 +497,13 @@ export default function ApiKeyTutorialModal({ open, onOpenChange }) {
 
   const pageLabels = ['Boas-vindas', 'Provedores', 'Configurar'];
 
+  const handleOpenChange = useCallback((v) => {
+    if (!v) handleClose();
+    else onOpenChange(v);
+  }, [handleClose, onOpenChange]);
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="bg-slate-900 border-purple-900/30 text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">

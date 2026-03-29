@@ -22,13 +22,17 @@ export default function Layout({ children, currentPageName }) {
   const { user, logout, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [tutorialChecked, setTutorialChecked] = useState(false);
 
-  // Show tutorial on first authenticated visit
+  // Show tutorial on first authenticated visit (once per session)
   useEffect(() => {
-    if (user && !isTutorialDismissed()) {
-      setTutorialOpen(true);
+    if (user && !tutorialChecked) {
+      setTutorialChecked(true);
+      if (!isTutorialDismissed()) {
+        setTutorialOpen(true);
+      }
     }
-  }, [user]);
+  }, [user, tutorialChecked]);
 
   const handleLogout = async () => {
     await logout();

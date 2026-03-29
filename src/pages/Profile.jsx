@@ -794,6 +794,8 @@ export default function Profile() {
         <button
           type="button"
           onClick={() => setAgentModelsExpanded(!agentModelsExpanded)}
+          aria-expanded={agentModelsExpanded}
+          aria-label="Expandir ou colapsar configuração de modelos por agente"
           className="w-full flex items-center justify-between p-6 text-left hover:bg-slate-800/20 transition-colors rounded-t-xl"
         >
           <div className="flex items-center gap-2">
