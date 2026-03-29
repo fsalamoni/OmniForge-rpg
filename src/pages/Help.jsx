@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { HelpContent } from '@/firebase/db';
+import ApiKeyTutorialModal, { resetTutorialDismissed } from '@/components/ApiKeyTutorialModal';
 import {
   HelpCircle,
   BookOpen,
@@ -13,7 +15,8 @@ import {
   Award,
   Play,
   Youtube,
-  ExternalLink
+  ExternalLink,
+  Key,
 } from 'lucide-react';
 
 const FAQItem = ({ question, answer }) => {
@@ -171,6 +174,13 @@ function ShowcaseSection() {
 }
 
 export default function Help() {
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+
+  const handleOpenTutorial = () => {
+    resetTutorialDismissed();
+    setTutorialOpen(true);
+  };
+
   const faqs = [
     {
       question: 'O que é a metodologia 5W2H?',
@@ -237,11 +247,20 @@ export default function Help() {
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-3 mb-2">
-          <HelpCircle className="w-10 h-10 text-purple-400" />
-          <h1 className="text-4xl font-bold text-white">
-            Central de Ajuda
-          </h1>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <HelpCircle className="w-10 h-10 text-purple-400" />
+            <h1 className="text-4xl font-bold text-white">
+              Central de Ajuda
+            </h1>
+          </div>
+          <Button
+            onClick={handleOpenTutorial}
+            className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white shadow-lg shadow-amber-900/20"
+          >
+            <Key className="w-4 h-4 mr-2" />
+            Tutorial de API Key
+          </Button>
         </div>
         <p className="text-slate-400 text-lg">
           Aprenda a usar todas as funcionalidades da plataforma
@@ -351,6 +370,9 @@ export default function Help() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Tutorial de API Key */}
+      <ApiKeyTutorialModal open={tutorialOpen} onOpenChange={setTutorialOpen} />
     </div>
   );
 }

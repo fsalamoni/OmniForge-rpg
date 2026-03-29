@@ -30,6 +30,8 @@ import {
   Download,
   ShieldCheck,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 const DEFAULT_AI_PROVIDER = 'openrouter';
@@ -78,6 +80,9 @@ export default function Profile() {
 
   // Per-agent model map
   const [agentModels, setAgentModels] = useState(() => getDefaultModelMap());
+
+  // Collapsible state for agent models section
+  const [agentModelsExpanded, setAgentModelsExpanded] = useState(false);
 
   // Use the enhanced catalog hook — returns user's models + all provider models
   const { userModels, allModels, isLoading: catalogLoading } = useUserCatalog(
@@ -784,15 +789,42 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* Per-Agent Model Configuration */}
-      <AgentModelConfig
-        agentModels={agentModels}
-        onAgentModelsChange={setAgentModels}
-        catalogModels={userModels}
-        isSaving={updateAgentModelsMutation.isPending}
-        onSave={handleSaveAgentModels}
-        onReset={handleResetAgentModels}
-      />
+      {/* Per-Agent Model Configuration — Collapsible */}
+      <Card className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
+        <button
+          type="button"
+          onClick={() => setAgentModelsExpanded(!agentModelsExpanded)}
+          className="w-full flex items-center justify-between p-6 text-left hover:bg-slate-800/20 transition-colors rounded-t-xl"
+        >
+          <div className="flex items-center gap-2">
+            <Bot className="w-6 h-6 text-purple-400" />
+            <span className="text-white font-semibold text-lg">Modelos por Agente</span>
+          </div>
+          {agentModelsExpanded ? (
+            <ChevronUp className="w-5 h-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-slate-400" />
+          )}
+        </button>
+        {!agentModelsExpanded && (
+          <div className="px-6 pb-4 -mt-2">
+            <p className="text-slate-500 text-sm">
+              Configure o modelo de IA ideal para cada agente do pipeline. Clique para expandir.
+            </p>
+          </div>
+        )}
+        {agentModelsExpanded && (
+          <AgentModelConfig
+            agentModels={agentModels}
+            onAgentModelsChange={setAgentModels}
+            catalogModels={userModels}
+            isSaving={updateAgentModelsMutation.isPending}
+            onSave={handleSaveAgentModels}
+            onReset={handleResetAgentModels}
+            hideCardWrapper
+          />
+        )}
+      </Card>
     </div>
   );
 }

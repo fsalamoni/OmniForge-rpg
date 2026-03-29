@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
+import ApiKeyTutorialModal, { isTutorialDismissed } from '@/components/ApiKeyTutorialModal';
 import {
   Home,
   Sparkles,
@@ -20,6 +21,14 @@ import {
 export default function Layout({ children, currentPageName }) {
   const { user, logout, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+
+  // Show tutorial on first authenticated visit
+  useEffect(() => {
+    if (user && !isTutorialDismissed()) {
+      setTutorialOpen(true);
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -166,6 +175,9 @@ export default function Layout({ children, currentPageName }) {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* Tutorial de configuração de API Key */}
+      <ApiKeyTutorialModal open={tutorialOpen} onOpenChange={setTutorialOpen} />
     </div>
   );
 }

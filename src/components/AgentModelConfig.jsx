@@ -107,6 +107,7 @@ function AgentRow({ agent, currentModelId, modelLabel, onOpenCatalog }) {
  * @param {boolean} props.isSaving — indica se está salvando
  * @param {function} props.onSave — callback para salvar no Firestore
  * @param {function} props.onReset — callback para resetar para defaults
+ * @param {boolean} props.hideCardWrapper — quando true, não renderiza Card/CardHeader externos
  */
 export default function AgentModelConfig({
   agentModels = {},
@@ -115,6 +116,7 @@ export default function AgentModelConfig({
   isSaving = false,
   onSave,
   onReset,
+  hideCardWrapper = false,
 }) {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [activeAgent, setActiveAgent] = useState(null);
@@ -161,18 +163,20 @@ export default function AgentModelConfig({
     return count;
   }, [agentModels]);
 
-  return (
-    <Card className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Bot className="w-6 h-6 text-purple-400" />
-          Modelos por Agente
-        </CardTitle>
-        <p className="text-slate-400 text-sm mt-1">
-          Configure o modelo de IA ideal para cada agente do pipeline. Modelos diferentes podem ser
-          mais eficazes para tarefas específicas como escrita criativa, raciocínio lógico ou extração de dados.
-        </p>
-      </CardHeader>
+  const innerContent = (
+    <>
+      {!hideCardWrapper && (
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Bot className="w-6 h-6 text-purple-400" />
+            Modelos por Agente
+          </CardTitle>
+          <p className="text-slate-400 text-sm mt-1">
+            Configure o modelo de IA ideal para cada agente do pipeline. Modelos diferentes podem ser
+            mais eficazes para tarefas específicas como escrita criativa, raciocínio lógico ou extração de dados.
+          </p>
+        </CardHeader>
+      )}
       <CardContent className="p-0">
         <TooltipProvider delayDuration={200}>
           {Object.entries(groupedAgents).map(([category, agents]) => (
@@ -264,6 +268,16 @@ export default function AgentModelConfig({
         agentLabel={activeAgent?.label || ''}
         agentCategory={activeAgent?.agentCategory || ''}
       />
+    </>
+  );
+
+  if (hideCardWrapper) {
+    return innerContent;
+  }
+
+  return (
+    <Card className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
+      {innerContent}
     </Card>
   );
 }
