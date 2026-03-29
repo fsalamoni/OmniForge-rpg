@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
+import ApiKeyTutorialModal, { isTutorialDismissed, dismissTutorial } from '@/components/ApiKeyTutorialModal';
 import {
   Home,
   Sparkles,
@@ -20,6 +21,28 @@ import {
 export default function Layout({ children, currentPageName }) {
   const { user, logout, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [tutorialChecked, setTutorialChecked] = useState(false);
+
+  // Show tutorial on first authenticated visit (once per session)
+  useEffect(() => {
+    if (user && !tutorialChecked) {
+      setTutorialChecked(true);
+      if (!isTutorialDismissed()) {
+        setTutorialOpen(true);
+      }
+    }
+  }, [user, tutorialChecked]);
+
+  // When the auto-triggered tutorial is closed, always dismiss it
+  // so it doesn't keep appearing on every new session.
+  // The user can still reopen it from the Help page.
+  const handleTutorialChange = useCallback((open) => {
+    setTutorialOpen(open);
+    if (!open) {
+      dismissTutorial();
+    }
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -166,6 +189,9 @@ export default function Layout({ children, currentPageName }) {
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* Tutorial de configuração de API Key */}
+      <ApiKeyTutorialModal open={tutorialOpen} onOpenChange={handleTutorialChange} />
     </div>
   );
 }
