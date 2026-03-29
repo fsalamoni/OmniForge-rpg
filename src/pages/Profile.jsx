@@ -31,7 +31,6 @@ import {
   ShieldCheck,
   Trash2,
   ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 
 const DEFAULT_AI_PROVIDER = 'openrouter';
@@ -790,28 +789,29 @@ export default function Profile() {
       </Card>
 
       {/* Per-Agent Model Configuration — Collapsible */}
-      <Card className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20">
+      <Card className="bg-slate-900/50 backdrop-blur-xl border-purple-900/20 overflow-hidden">
         <button
           type="button"
           onClick={() => setAgentModelsExpanded(!agentModelsExpanded)}
           aria-expanded={agentModelsExpanded}
           aria-label="Expandir ou colapsar configuração de modelos por agente"
-          className="w-full flex items-center justify-between p-6 text-left hover:bg-slate-800/20 transition-colors rounded-t-xl"
+          className="w-full flex items-center justify-between p-6 text-left hover:bg-slate-800/20 transition-colors"
         >
           <div className="flex items-center gap-2">
             <Bot className="w-6 h-6 text-purple-400" />
             <span className="text-white font-semibold text-lg">Modelos por Agente</span>
+            {!agentModelsExpanded && (
+              <span className="text-xs text-slate-500 hidden sm:inline ml-2">
+                — clique para expandir
+              </span>
+            )}
           </div>
-          {agentModelsExpanded ? (
-            <ChevronUp className="w-5 h-5 text-slate-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-slate-400" />
-          )}
+          <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${agentModelsExpanded ? 'rotate-180' : ''}`} />
         </button>
         {!agentModelsExpanded && (
           <div className="px-6 pb-4 -mt-2">
             <p className="text-slate-500 text-sm">
-              Configure o modelo de IA ideal para cada agente do pipeline. Clique para expandir.
+              Configure o modelo de IA ideal para cada agente do pipeline.
             </p>
           </div>
         )}

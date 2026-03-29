@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
-import ApiKeyTutorialModal, { isTutorialDismissed } from '@/components/ApiKeyTutorialModal';
+import ApiKeyTutorialModal, { isTutorialDismissed, dismissTutorial } from '@/components/ApiKeyTutorialModal';
 import {
   Home,
   Sparkles,
@@ -33,6 +33,16 @@ export default function Layout({ children, currentPageName }) {
       }
     }
   }, [user, tutorialChecked]);
+
+  // When the auto-triggered tutorial is closed, always dismiss it
+  // so it doesn't keep appearing on every new session.
+  // The user can still reopen it from the Help page.
+  const handleTutorialChange = useCallback((open) => {
+    setTutorialOpen(open);
+    if (!open) {
+      dismissTutorial();
+    }
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -181,7 +191,7 @@ export default function Layout({ children, currentPageName }) {
       )}
 
       {/* Tutorial de configuração de API Key */}
-      <ApiKeyTutorialModal open={tutorialOpen} onOpenChange={setTutorialOpen} />
+      <ApiKeyTutorialModal open={tutorialOpen} onOpenChange={handleTutorialChange} />
     </div>
   );
 }

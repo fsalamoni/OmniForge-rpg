@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { HelpContent } from '@/firebase/db';
-import ApiKeyTutorialModal, { resetTutorialDismissed } from '@/components/ApiKeyTutorialModal';
+import ApiKeyTutorialModal from '@/components/ApiKeyTutorialModal';
 import {
   HelpCircle,
   BookOpen,
@@ -177,11 +177,14 @@ export default function Help() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const handleOpenTutorial = () => {
-    resetTutorialDismissed();
     setTutorialOpen(true);
   };
 
   const faqs = [
+    {
+      question: 'Como configuro minha API Key para usar a IA?',
+      answer: 'Acesse a página de Perfil, selecione seu provedor de IA (recomendamos o OpenRouter para iniciantes), cole sua API Key no campo correspondente, escolha um modelo e clique em "Salvar Configuração de IA". Clique no botão "Tutorial de API Key" acima para um guia completo passo a passo.'
+    },
     {
       question: 'O que é a metodologia 5W2H?',
       answer: '5W2H é uma técnica de perguntas estruturadas que ajuda a extrair informações completas sobre uma situação. As 7 perguntas cobrem: What (O quê?), Why (Por quê?), Where (Onde?), When (Quando?), Who (Quem?), How (Como?) e How Much (Quanto?). Nossa IA usa essas respostas para criar campanhas detalhadas e coerentes.'
@@ -247,16 +250,16 @@ export default function Help() {
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Header */}
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
           <div className="flex items-center gap-3">
-            <HelpCircle className="w-10 h-10 text-purple-400" />
-            <h1 className="text-4xl font-bold text-white">
+            <HelpCircle className="w-10 h-10 text-purple-400 shrink-0" />
+            <h1 className="text-3xl sm:text-4xl font-bold text-white">
               Central de Ajuda
             </h1>
           </div>
           <Button
             onClick={handleOpenTutorial}
-            className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white shadow-lg shadow-amber-900/20"
+            className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white shadow-lg shadow-amber-900/20 shrink-0"
           >
             <Key className="w-4 h-4 mr-2" />
             Tutorial de API Key

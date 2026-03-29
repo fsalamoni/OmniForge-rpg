@@ -8,7 +8,7 @@
  * Pode ser reaberto pela Central de Ajuda.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,7 @@ import {
   BookOpen,
   Shield,
   Rocket,
+  ArrowRight,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -302,7 +303,7 @@ function ProviderListPage({ onSelectProvider }) {
   );
 }
 
-function ProviderGuidePage({ provider, onBack }) {
+function ProviderGuidePage({ provider, onBack, onNext }) {
   return (
     <div className="space-y-4">
       <button
@@ -330,7 +331,7 @@ function ProviderGuidePage({ provider, onBack }) {
         </div>
       </div>
 
-      <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 model-catalog-scroll">
+      <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1 model-catalog-scroll">
         {provider.steps.map((step, idx) => (
           <div key={idx} className="flex gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
             <div className="flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-amber-500 text-white text-xs font-bold shrink-0 mt-0.5">
@@ -350,6 +351,15 @@ function ProviderGuidePage({ provider, onBack }) {
           </p>
         </div>
       </div>
+
+      {/* Forward navigation to registration page */}
+      <button
+        onClick={onNext}
+        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-500/20 hover:border-emerald-500/40 transition-all group"
+      >
+        <span className="text-sm text-emerald-300 font-medium">Já tenho a chave — como registrar no OmniForge?</span>
+        <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+      </button>
     </div>
   );
 }
@@ -433,17 +443,26 @@ function RegisterKeyPage() {
 // ---------------------------------------------------------------------------
 
 export default function ApiKeyTutorialModal({ open, onOpenChange }) {
-  // Pages: 0 = welcome, 1 = provider list, 2 = provider guide (sub), 3 = register on platform
+  // Pages: 0 = welcome, 1 = provider list, 2 = register on platform
   const [page, setPage] = useState(0);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
+  // Reset internal state when modal opens
+  useEffect(() => {
+    if (open) {
+      setPage(0);
+      setSelectedProvider(null);
+      setDontShowAgain(false);
+    }
+  }, [open]);
+
   const handleClose = useCallback(() => {
+    // Always dismiss on close — the user has seen it.
+    // Only exception: they can explicitly uncheck "don't show again" to keep seeing it.
     if (dontShowAgain) {
       dismissTutorial();
     }
-    setPage(0);
-    setSelectedProvider(null);
     onOpenChange(false);
   }, [dontShowAgain, onOpenChange]);
 
@@ -455,13 +474,21 @@ export default function ApiKeyTutorialModal({ open, onOpenChange }) {
     setSelectedProvider(null);
   }, []);
 
+  // Navigate from provider guide directly to registration page
+  const handleProviderToRegister = useCallback(() => {
+    setSelectedProvider(null);
+    setPage(2);
+  }, []);
+
   const totalPages = TOTAL_INTRO_PAGES + TOTAL_FINAL_PAGES; // 0, 1, 2
   const isFirstPage = page === 0 && !selectedProvider;
   const isLastPage = page === totalPages - 1 && !selectedProvider;
 
   const handleNext = () => {
     if (selectedProvider) {
+      // From provider guide, go to register page
       setSelectedProvider(null);
+      setPage(2);
       return;
     }
     if (page < totalPages - 1) {
@@ -481,7 +508,13 @@ export default function ApiKeyTutorialModal({ open, onOpenChange }) {
 
   const renderContent = () => {
     if (selectedProvider) {
-      return <ProviderGuidePage provider={selectedProvider} onBack={handleBackToList} />;
+      return (
+        <ProviderGuidePage
+          provider={selectedProvider}
+          onBack={handleBackToList}
+          onNext={handleProviderToRegister}
+        />
+      );
     }
     switch (page) {
       case 0:
@@ -521,13 +554,15 @@ export default function ApiKeyTutorialModal({ open, onOpenChange }) {
 
         {/* Progress dots */}
         {!selectedProvider && (
-          <div className="flex items-center justify-center gap-2 py-1">
+          <div className="flex items-center justify-center gap-2 py-1" role="tablist" aria-label="Etapas do tutorial">
             {pageLabels.map((label, idx) => (
               <button
                 key={idx}
                 onClick={() => setPage(idx)}
                 className="flex items-center gap-1.5 group"
-                title={label}
+                role="tab"
+                aria-selected={idx === page}
+                aria-label={`Etapa ${idx + 1}: ${label}`}
               >
                 <div className={`w-2 h-2 rounded-full transition-all ${
                   idx === page
@@ -586,6 +621,16 @@ export default function ApiKeyTutorialModal({ open, onOpenChange }) {
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 Voltar
+              </Button>
+            )}
+            {selectedProvider && (
+              <Button
+                size="sm"
+                onClick={handleProviderToRegister}
+                className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white"
+              >
+                Próximo
+                <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             )}
             {isLastPage && !selectedProvider ? (
