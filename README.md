@@ -36,8 +36,41 @@ Gerador de campanhas de RPG com Inteligência Artificial.
 | `VITE_FIREBASE_STORAGE_BUCKET` | Project Settings → General → storageBucket |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Project Settings → General → messagingSenderId |
 | `VITE_FIREBASE_APP_ID` | Project Settings → General → appId |
+| `VITE_FIREBASE_DATABASE_ID` | Firestore Database ID dedicado do OmniForge (`omniforge`) |
+| `VITE_FIREBASE_STORAGE_PREFIX` | Prefixo dedicado no Storage (`omniforge`) |
 
-### 1.2 Ativar o GitHub Pages
+Se esses dois últimos valores não forem informados, a aplicação usa `omniforge` por padrão.
+
+### 1.2 Isolar o Firestore do OmniForge
+
+Para não misturar dados com outras plataformas no mesmo projeto Firebase:
+
+1. Acesse **Firebase Console → Firestore Database**.
+2. Crie um database com ID `omniforge`.
+3. Publique as regras de `firestore.rules`.
+4. Configure `VITE_FIREBASE_DATABASE_ID=omniforge` e `VITE_FIREBASE_STORAGE_PREFIX=omniforge` nos ambientes de build/deploy.
+
+A aplicação usa somente as coleções do OmniForge neste database dedicado:
+`users`, `campaigns`, `campaignSteps`, `npcCreatures`, `rpgSystems`, `sessionLogs`, `campaignRewards`, `campaignLikes`, `siteContent` e `aiAgents`.
+
+### 1.3 Restaurar dados do banco antigo para o database `omniforge`
+
+O script de restauração copia apenas coleções do OmniForge, preserva o banco de origem, não apaga dados e, por padrão, não sobrescreve documentos existentes no destino.
+
+```bash
+# Autentique com uma service account via GOOGLE_APPLICATION_CREDENTIALS
+npm install
+
+# Simulação segura, sem escrita
+npm run restore:omniforge-db -- --project seu-project-id --source "(default)" --target omniforge
+
+# Execução real
+npm run restore:omniforge-db -- --project seu-project-id --source "(default)" --target omniforge --write
+```
+
+Use `--user uid1,uid2` para restaurar apenas campanhas de usuários específicos. Sem `--include-all-users`, o script copia apenas os perfis dos usuários donos das campanhas restauradas.
+
+### 1.4 Ativar o GitHub Pages
 
 1. Acesse: **Settings → Pages**
 2. Em **Source**, selecione: **Deploy from a branch**

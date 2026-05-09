@@ -15,7 +15,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from './config';
+import { db, firebaseStoragePrefix, storage } from './config';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -652,7 +652,9 @@ export const SeedData = {
 // ─── CampaignStorage ────────────────────────────────────────────────────────
 export const CampaignStorage = {
   async uploadMapImage(campaignId, mapId, file, onProgress) {
-    const path = `campaigns/${campaignId}/maps/${mapId}`;
+    const path = [firebaseStoragePrefix, 'campaigns', campaignId, 'maps', mapId]
+      .filter(Boolean)
+      .join('/');
     const storageRef = ref(storage, path);
     const task = uploadBytesResumable(storageRef, file);
     return new Promise((resolve, reject) => {
