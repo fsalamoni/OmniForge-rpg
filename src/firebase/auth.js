@@ -1,10 +1,24 @@
 import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
-import { auth } from './config';
+import { auth, firebaseConfigError } from './config';
 
 const googleProvider = new GoogleAuthProvider();
 
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
+const requireAuth = () => {
+  if (!auth) {
+    throw firebaseConfigError || new Error('Firebase Auth não está configurado.');
+  }
+  return auth;
+};
 
-export const signOut = () => firebaseSignOut(auth);
+export const signInWithGoogle = () => signInWithPopup(requireAuth(), googleProvider);
 
-export const onAuthStateChange = (callback) => onAuthStateChanged(auth, callback);
+export const signOut = () => firebaseSignOut(requireAuth());
+
+export const onAuthStateChange = (callback) => {
+  if (!auth) {
+    callback(null);
+    return () => {};
+  }
+
+  return onAuthStateChanged(auth, callback);
+};
