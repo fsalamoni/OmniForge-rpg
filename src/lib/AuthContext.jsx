@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { onAuthStateChange, signInWithGoogle, signOut } from '@/firebase/auth';
 import { UserProfile } from '@/firebase/db';
+import { firebaseConfigError } from '@/firebase/config';
 
 // Emails com privilégio de administrador
 const ADMIN_EMAILS = ['fsalamoni@gmail.com'];
@@ -14,6 +15,11 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
+    if (firebaseConfigError) {
+      setIsLoadingAuth(false);
+      return undefined;
+    }
+
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -83,6 +89,7 @@ export const AuthProvider = ({ children }) => {
       userProfile,
       isAuthenticated,
       isLoadingAuth,
+      firebaseConfigError,
       isAdmin,
       login,
       logout,

@@ -15,12 +15,28 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth } = useAuth();
+  const { isLoadingAuth, firebaseConfigError } = useAuth();
 
   if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
         <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (firebaseConfigError) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-950 px-6 text-center">
+        <div className="max-w-xl rounded-2xl border border-red-500/30 bg-slate-900/80 p-8 shadow-xl">
+          <h1 className="mb-4 text-2xl font-bold text-white">Firebase não configurado</h1>
+          <p className="mb-4 text-slate-300">
+            A aplicação não conseguiu iniciar a conexão com o Firebase porque a configuração de ambiente está ausente ou inválida.
+          </p>
+          <p className="rounded-lg bg-red-950/40 p-4 text-sm text-red-200">
+            {firebaseConfigError.message}
+          </p>
+        </div>
       </div>
     );
   }
